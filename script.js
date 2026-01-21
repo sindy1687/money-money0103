@@ -4767,12 +4767,16 @@ function updateAutoRefreshButton() {
     }
 }
 
-// 初始化時檢查是否需要啟動定時更新
+// 初始化時啟動自動更新：每次刷新立即抓價，並開啟定時更新
 function initAutoRefreshPrices() {
-    const savedSetting = localStorage.getItem('autoRefreshPrices');
-    if (savedSetting === 'true') {
-        startAutoRefreshPrices();
-    }
+    // 先做一次即時抓價（尊重手動價格，函式內會跳過）
+    autoLoadStockPrices();
+
+    // 預設開啟定時更新
+    startAutoRefreshPrices();
+
+    // 記錄設定，方便之後需要關閉時仍有狀態可循
+    localStorage.setItem('autoRefreshPrices', 'true');
 }
 
 // 自動載入所有持股的現價
@@ -4796,13 +4800,6 @@ async function autoLoadStockPrices() {
         let skippedCount = 0;
         for (const code of stockCodes) {
             try {
-                // 檢查是否有今天手動輸入的價格
-                if (hasManualPriceToday(code)) {
-                    skippedCount++;
-                    console.log(`⏭️ ${code} 今天已有手動輸入的價格，跳過自動更新`);
-                    continue;
-                }
-
                 const price = await fetchStockPrice(code, { allowPrompt: false });
                 if (price) {
                     successCount++;
@@ -4818,10 +4815,6 @@ async function autoLoadStockPrices() {
             catch (err) {
                 console.error(`獲取 ${code} 股價失敗:`, err);
             }
-        }
-        
-        if (skippedCount > 0) {
-            console.log(`⏭️ 跳過 ${skippedCount} 個今天已有手動輸入價格的股票`);
         }
         
         console.log(`價格更新完成: ${successCount}/${stockCodes.length} 成功`);
@@ -6086,24 +6079,10 @@ function showStockPriceQueryModal({ stockCode, stockName, isBondETF, defaultPric
 }
 
  // 從 API 獲取股票現價
- async function fetchStockPrice(stockCode, options = {}) {
-     const { allowPrompt = true, maxAgeMs = 6 * 60 * 60 * 1000 } = options;
-    // 檢查是否有今天手動輸入的價格，如果有則跳過網絡請求
-    if (hasManualPriceToday(stockCode)) {
-        const manualPrice = getStockCurrentPrice(stockCode);
-        console.log(`📝 ${stockCode} 今天已有手動輸入的價格 (NT$${manualPrice.toFixed(2)})，跳過自動更新`);
-        return manualPrice;
-    }
-
-    // 若本地緩存價格仍新鮮，直接使用（減少外部請求）
-    if (maxAgeMs && maxAgeMs > 0) {
-        const cached = getStockPriceData(stockCode);
-        if (cached && cached.price && cached.timestamp && Date.now() - cached.timestamp < maxAgeMs) {
-            return cached.price;
-        }
-    }
-     
-     try {
+async function fetchStockPrice(stockCode, options = {}) {
+    const { allowPrompt = true, maxAgeMs = 6 * 60 * 60 * 1000 } = options;
+   
+   try {
         // 處理債券 ETF 和特殊格式
         // 台灣股票/ETF 格式：2330.TW 或 00751B.TW
         // 注意：債券 ETF 代碼如 00751B 需要保持 B 後綴
@@ -6249,18 +6228,18 @@ function showStockPriceQueryModal({ stockCode, stockName, isBondETF, defaultPric
                         if (proxyResponse.status === 200 && proxyResponse.ok) {
                             const responseText = await proxyResponse.text();
                             try {
-                            const data = JSON.parse(responseText);
-                            
-                            if (data && data.chart && data.chart.result && data.chart.result.length > 0) {
-                                const result = data.chart.result[0];
-                                if (result && result.meta) {
-                                    const currentPrice = result.meta.regularMarketPrice || result.meta.previousClose || null;
-                                    if (currentPrice && currentPrice > 0) {
-                                        saveStockCurrentPrice(stockCode, currentPrice, false); // false = 自動獲取
+                                const data = JSON.parse(responseText);
+                                
+                                if (data && data.chart && data.chart.result && data.chart.result.length > 0) {
+                                    const result = data.chart.result[0];
+                                    if (result && result.meta) {
+                                        const currentPrice = result.meta.regularMarketPrice || result.meta.previousClose || null;
+                                        if (currentPrice && currentPrice > 0) {
+                                            saveStockCurrentPrice(stockCode, currentPrice, false); // false = 自動獲取
                                             console.log(`✓ 通過備用格式成功獲取 ${stockCode} 價格: ${currentPrice}`);
-                                        return currentPrice;
+                                            return currentPrice;
+                                        }
                                     }
-                                }
                                 }
                             } catch (parseError) {
                                 continue; // 解析失敗，嘗試下一個
@@ -6280,41 +6259,8 @@ function showStockPriceQueryModal({ stockCode, stockName, isBondETF, defaultPric
                 console.log(`使用已保存的 ${stockCode} 價格: ${savedPrice}`);
                 return savedPrice;
             }
-            
-            // 如果都沒有，提示用戶手動輸入
-            console.info(`💡 債券 ETF ${stockCode} 無法自動獲取價格`);
-            console.info(`   請在個股詳情頁面的「現價」輸入框中手動輸入當前價格`);
-        }
-        
-        // 如果所有方法都失敗，提示用戶手動輸入（所有股票都適用）
-        const savedPrice = getStockCurrentPrice(stockCode);
-        const hasManualToday = hasManualPriceToday(stockCode);
-        
-        // 顯示友好的提示框（如果今天還沒有手動輸入過價格）
-        if (allowPrompt && !hasManualToday) {
-            const stockName = findStockName(stockCode) || stockCode;
-            const isBondETF = stockCode.endsWith('B');
 
-            const manualPrice = await showStockPriceQueryModal({
-                stockCode,
-                stockName,
-                isBondETF,
-                defaultPrice: savedPrice
-            });
-
-            if (manualPrice && !isNaN(manualPrice) && manualPrice > 0) {
-                saveStockCurrentPrice(stockCode, manualPrice, true);
-                console.log(`✓ 已保存手動輸入的 ${stockCode} 價格: ${manualPrice}`);
-                if (typeof updateInvestmentSummary === 'function') {
-                    updateInvestmentSummary();
-                }
-                if (typeof updateStockList === 'function') {
-                    updateStockList();
-                }
-                return manualPrice;
-            }
-        } else {
-            console.log(`📝 ${stockCode} 今天已有手動輸入的價格，不顯示提示框`);
+            // 如果都沒有，返回 null 交由通用流程處理
         }
         
         // 記錄警告信息
@@ -6327,6 +6273,7 @@ function showStockPriceQueryModal({ stockCode, stockName, isBondETF, defaultPric
         }
         
         // 如果有已保存的價格，返回它（即使不是今天的）
+        const savedPrice = getStockCurrentPrice(stockCode);
         if (savedPrice) {
             return savedPrice;
         }
@@ -6335,12 +6282,10 @@ function showStockPriceQueryModal({ stockCode, stockName, isBondETF, defaultPric
     } catch (error) {
         const errorMsg = error.message || '未知錯誤';
         console.error(`獲取 ${stockCode} 股價失敗:`, errorMsg);
-        
-        // 檢查是否有今天手動輸入的價格，如果沒有則提示手動輸入
         const savedPrice = getStockCurrentPrice(stockCode);
-        const hasManualToday = hasManualPriceToday(stockCode);
-        
-        if (!hasManualToday) {
+
+        // 顯示友好的提示框（保持手動輸入管道）
+        if (allowPrompt) {
             const stockName = findStockName(stockCode) || stockCode;
             const isBondETF = stockCode.endsWith('B');
 

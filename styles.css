@@ -10704,7 +10704,7 @@ width: 100%;
 
 .category-tab-count {
     background: rgba(255, 255, 255, 0.2);
-    color: inherit;
+    color: #ffd800;
     padding: 2px 6px;
     border-radius: var(--radius-sm);
     font-size: var(--font-xs);
@@ -10715,6 +10715,7 @@ width: 100%;
 
 .category-tab.active .category-tab-count {
     background: var(--bg-white);
+    color: #ffd800;
 }
 
 /* 主題分類區塊 */
@@ -10762,6 +10763,10 @@ width: 100%;
     color: var(--text-tertiary);
     margin-left: auto;
     font-style: italic;
+}
+
+.theme-category-section[data-category="anime"] .theme-category-description {
+    color: #ffd800;
 }
 
 /* 移除舊的 theme-category-grid，改用上面已定義的版本 */
@@ -14880,7 +14885,7 @@ width: 100%;
 
 .stock-card-code {
     font-size: 10px;
-    color: var(--text-primary);
+    color: #ffd800;
     font-weight: 700;
     background: linear-gradient(135deg, rgba(255, 182, 217, 0.15) 0%, rgba(255, 158, 199, 0.1) 100%);
     padding: 1px 4px;
@@ -33996,11 +34001,28 @@ html:has([data-theme="shinobu"]) *[class*="budget-remaining"] {
     background: var(--bg-white);
 }
 
-.theme-modal-header h2 {
+.theme-modal-title {
     font-size: var(--font-xl);
     font-weight: var(--font-bold);
     color: var(--text-primary);
     margin: 0;
+}
+
+/* 主題選擇器：統一文字為亮黃色 */
+.theme-select-modal .theme-modal-title,
+.theme-select-modal .theme-section-title,
+.theme-select-modal .category-tab,
+.theme-select-modal .category-tab-name,
+.theme-select-modal .category-tab-icon,
+.theme-select-modal .theme-category-name,
+.theme-select-modal .theme-category-description,
+.theme-select-modal .theme-category-count,
+.theme-select-modal .theme-item-name,
+.theme-select-modal .theme-item-icon,
+.theme-select-modal .theme-item-check,
+.theme-select-modal .theme-search-input,
+.theme-select-modal .theme-search-input::placeholder {
+    color: #ffd800;
 }
 
 .theme-close-btn {
