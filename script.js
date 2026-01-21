@@ -1,4 +1,4 @@
-// ========== 音效功能 ==========
+﻿// ========== 音效功能 ==========
 
 // 音頻文件緩存，避免重複創建
 let clickAudio = null;
@@ -9,8 +9,43 @@ if (typeof window !== 'undefined' && typeof window.applyAutoWidth !== 'function'
     window.applyAutoWidth = function () {};
 }
 
+function expandInputSection() {
+    const inputSection = document.getElementById('inputSection');
+    if (inputSection && inputSection.classList.contains('collapsed')) {
+        inputSection.classList.remove('collapsed');
+        const collapseBtn = document.getElementById('collapseBtn');
+        const collapseIcon = collapseBtn?.querySelector('.collapse-icon');
+        if (collapseIcon) {
+            collapseIcon.textContent = '▼';
+        }
+    }
+}
+
 // 股票交易分析（買入 / 賣出 / 股利）
+function getThemeChartPalette() {
+    const root = document.documentElement;
+    const getVar = (name, fallback) => {
+        const value = getComputedStyle(root).getPropertyValue(name).trim();
+        return value || fallback;
+    };
+
+    return {
+        primary: getVar('--color-primary', '#4a90e2'),
+        primaryLight: getVar('--color-primary-light', '#7bb3f0'),
+        primaryLighter: getVar('--color-primary-lighter', '#5da3ed'),
+        primaryDark: getVar('--color-primary-dark', '#2e7bd6'),
+        accent: getVar('--color-secondary', '#7c3aed'),
+        background: getVar('--bg-card', 'rgba(255,255,255,0.92)'),
+        border: getVar('--border-light', '#e5e7eb'),
+        textPrimary: getVar('--text-primary', '#1f2937'),
+        textSecondary: getVar('--text-secondary', '#6b7280'),
+        success: getVar('--color-success', '#22c55e') || '#22c55e',
+        danger: getVar('--color-danger', '#ef4444') || '#ef4444'
+    };
+}
+
 function updateStockTradeChart() {
+    const palette = getThemeChartPalette();
     const sellCanvas = document.getElementById('stockTradeChartSell');
     const divCanvas = document.getElementById('stockTradeChartDiv');
     if (!sellCanvas || !divCanvas) return;
@@ -96,12 +131,12 @@ function updateStockTradeChart() {
         if (divSubtitle) divSubtitle.style.display = 'none';
     }
 
-    const primary = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#ff69b4';
-    const primaryLight = getComputedStyle(document.documentElement).getPropertyValue('--color-primary-light').trim() || primary;
-    const success = getComputedStyle(document.documentElement).getPropertyValue('--color-success').trim() || '#10b981';
-    const danger = getComputedStyle(document.documentElement).getPropertyValue('--color-danger').trim() || '#ef4444';
-    const borderLight = getComputedStyle(document.documentElement).getPropertyValue('--border-light').trim() || '#e5e7eb';
-    const textSecondary = getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#6b7280';
+    const primary = palette.primary;
+    const success = palette.success;
+    const danger = palette.danger;
+    const primaryLight = palette.primaryLight;
+    const borderLight = palette.border;
+    const textSecondary = palette.textSecondary;
 
     const commonOptions = {
         type: 'bar',
@@ -149,7 +184,7 @@ function updateStockTradeChart() {
                         borderColor: primary,
                         borderWidth: 1,
                         borderRadius: 6,
-                        barThickness: 12,
+                        barThickness: Math.max(8, Math.min(14, 200 / labels.length)),
                     }]
                 }
             })
@@ -169,7 +204,7 @@ function updateStockTradeChart() {
                         borderColor: primaryLight || success,
                         borderWidth: 1,
                         borderRadius: 6,
-                        barThickness: 12,
+                        barThickness: Math.max(8, Math.min(14, 200 / labels.length)),
                     }]
                 }
             })
@@ -187,6 +222,7 @@ function updateStockTradeChart() {
 
 // 股票持倉盈虧
 function updateStockPnlChart() {
+    const palette = getThemeChartPalette();
     const canvas = document.getElementById('stockPnlChart');
     if (!canvas) return;
     const insightEl = document.getElementById('stockPnlInsight');
@@ -246,10 +282,10 @@ function updateStockPnlChart() {
         stockPnlChartInstance.destroy();
     }
 
-    const primary = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#ff69b4';
-    const danger = getComputedStyle(document.documentElement).getPropertyValue('--color-danger').trim() || '#ef4444';
-    const borderLight = getComputedStyle(document.documentElement).getPropertyValue('--border-light').trim() || '#e5e7eb';
-    const textSecondary = getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#6b7280';
+    const primary = palette.primary;
+    const danger = palette.danger;
+    const borderLight = palette.border;
+    const textSecondary = palette.textSecondary;
 
     const colors = gains.map(g => g >= 0 ? primary : danger);
 
@@ -308,6 +344,7 @@ function updateStockPnlChart() {
 
 // 股票持倉分佈（以市值計算權重）
 function updateStockAllocationChart() {
+    const palette = getThemeChartPalette();
     const canvas = document.getElementById('stockAllocationChart');
     if (!canvas) return;
 
@@ -343,7 +380,7 @@ function updateStockAllocationChart() {
         return;
     }
 
-    const colors = generateColors(labels.length);
+    const colors = generateColors(labels.length, palette);
 
     if (stockAllocationChartInstance) {
         stockAllocationChartInstance.destroy();
@@ -1087,6 +1124,18 @@ function refreshAllForSelectedMonth(forceLedgerDate = false) {
             initLedger();
         }
     }
+    const stockBondSummaryEl = document.getElementById('stockBondSummaryValue');
+    if (stockBondSummaryEl) {
+        const values = computeStockBondMarketValues();
+        const totalValue = values.totalValue || 0;
+        if (totalValue > 0) {
+            const stockPct = values.stockValue / totalValue;
+            const bondPct = values.bondValue / totalValue;
+            stockBondSummaryEl.textContent = `股 ${formatPct(stockPct)} / 債 ${formatPct(bondPct)}`;
+        } else {
+            stockBondSummaryEl.textContent = '尚無資料';
+        }
+    }
 
     const pageChart = document.getElementById('pageChart');
     if (pageChart && pageChart.style.display !== 'none') {
@@ -1113,13 +1162,12 @@ const prevCloseAttemptAt = {};
 const PREV_CLOSE_COOLDOWN_MS = 5 * 60 * 1000;
 
 const publicQuoteProxies = [
-    // Put Jina first: raw fetch (least likely to 404)
-    'https://r.jina.ai/http://',
-    // Returns JSON wrapper: { contents: "..." }
-    'https://api.allorigins.win/raw?url=',
-    // Usually returns raw proxied content
-    'https://api.codetabs.com/v1/proxy/?quest='
-    // 2025/01: corsproxy.io frequently 404，暫時移除以降低噪音
+    // 新的可用代理服務
+    'https://api.codetabs.com/v1/proxy/?quest=',
+    'https://corsproxy.io/?',
+    // cors-anywhere.herokuapp.com 已經不可用，完全移除
+    // 暫時移除 r.jina.ai (503 錯誤)
+    // 'https://r.jina.ai/http://',
 ];
 
 function isProxyInCooldown(proxyBase) {
@@ -1149,10 +1197,10 @@ async function fetchPrevCloseFromTwseOtc(stockCode) {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 8000);
                 let finalUrl;
-                if (proxyBase.includes('r.jina.ai')) {
-                    const cleaned = url.replace(/^https?:\/\//, '');
-                    finalUrl = `${proxyBase}${cleaned}`;
+                if (proxyBase.includes('corsproxy.io')) {
+                    finalUrl = `${proxyBase}${encodeURIComponent(url)}`;
                 } else {
+                    // codetabs.com 和其他代理
                     finalUrl = `${proxyBase}${encodeURIComponent(url)}`;
                 }
                 const resp = await fetch(finalUrl, { signal: controller.signal });
@@ -1226,10 +1274,10 @@ async function fetchPreviousCloseOnly(stockCode) {
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 8000);
                     let finalUrl;
-                    if (proxyBase.includes('r.jina.ai')) {
-                        const cleaned = yahooChartUrl.replace(/^https?:\/\//, '');
-                        finalUrl = `${proxyBase}${cleaned}`;
+                    if (proxyBase.includes('corsproxy.io')) {
+                        finalUrl = `${proxyBase}${encodeURIComponent(yahooChartUrl)}`;
                     } else {
+                        // codetabs.com 和其他代理
                         finalUrl = `${proxyBase}${encodeURIComponent(yahooChartUrl)}`;
                     }
                     const resp = await fetch(finalUrl, { signal: controller.signal });
@@ -1270,10 +1318,10 @@ async function fetchPreviousCloseOnly(stockCode) {
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 8000);
                     let finalUrl;
-                    if (proxyBase.includes('r.jina.ai')) {
-                        const cleaned = yahooQuoteUrl.replace(/^https?:\/\//, '');
-                        finalUrl = `${proxyBase}${cleaned}`;
+                    if (proxyBase.includes('corsproxy.io')) {
+                        finalUrl = `${proxyBase}${encodeURIComponent(yahooQuoteUrl)}`;
                     } else {
+                        // codetabs.com 和其他代理
                         finalUrl = `${proxyBase}${encodeURIComponent(yahooQuoteUrl)}`;
                     }
                     const resp = await fetch(finalUrl, { signal: controller.signal });
@@ -1335,10 +1383,10 @@ async function fetchYahooChartViaPublicProxies(yahooUrl, stockCode) {
             const timeoutId = setTimeout(() => controller.abort(), 10000);
             try {
                 let finalUrl;
-                if (proxyBase.includes('r.jina.ai')) {
-                    const cleaned = yahooUrl.replace(/^https?:\/\//, '');
-                    finalUrl = `${proxyBase}${cleaned}`;
+                if (proxyBase.includes('corsproxy.io')) {
+                    finalUrl = `${proxyBase}${encodeURIComponent(yahooUrl)}`;
                 } else {
+                    // codetabs.com 和其他代理
                     finalUrl = `${proxyBase}${encodeURIComponent(yahooUrl)}`;
                 }
 
@@ -1356,7 +1404,7 @@ async function fetchYahooChartViaPublicProxies(yahooUrl, stockCode) {
                     }
                 } catch (_) {}
 
-                // r.jina.ai returns HTML-ish wrapper; try to extract JSON by finding first '{'
+                // 
                 const firstBrace = raw.indexOf('{');
                 if (firstBrace > 0) raw = raw.slice(firstBrace);
 
@@ -1566,7 +1614,7 @@ function addCustomCategoryDeleteEvents(categoryItem, categoryName, categoryType)
             const originalTransform = categoryItem.style.transform;
             const originalBackground = categoryItem.style.background;
             categoryItem.style.transform = 'scale(0.95)';
-            categoryItem.style.background = '#ffebee';
+            categoryItem.style.background = 'var(--bg-danger)';
             
             // 確認刪除
             if (confirm(`確定要刪除自訂分類「${categoryName}」嗎？\n\n此操作無法復原。`)) {
@@ -1900,11 +1948,11 @@ function initCategoryGrid(tabType = 'recommended', recordType = null) {
         // 先添加新增分類按鈕
         const addCategoryItem = document.createElement('div');
         addCategoryItem.className = 'category-item add-category-item';
-        addCategoryItem.style.cssText = 'background: linear-gradient(135deg, #fff5f9 0%, #ffeef5 100%); border: 2px dashed #ffb6d9; cursor: pointer;';
+        addCategoryItem.style.cssText = 'background: var(--bg-light-gradient); border: 2px dashed var(--color-primary); cursor: pointer;';
         
         addCategoryItem.innerHTML = `
             <span class="category-icon" style="font-size: 32px;">➕</span>
-            <span class="category-name" style="color: #ff69b4; font-weight: 600;">新增分類</span>
+            <span class="category-name" style="color: var(--color-primary); font-weight: 600;">新增分類</span>
         `;
         
         addCategoryItem.addEventListener('click', () => {
@@ -2127,7 +2175,7 @@ function initCategoryGrid(tabType = 'recommended', recordType = null) {
                     // 視覺反饋
                     const originalTransform = categoryItem.style.transform;
                     categoryItem.style.transform = 'scale(0.95)';
-                    categoryItem.style.background = '#ffebee';
+                    categoryItem.style.background = 'var(--bg-danger)';
                     
                     // 確認刪除
                     if (confirm(`確定要刪除自訂分類「${category.name}」嗎？\n\n此操作無法復原。`)) {
@@ -2168,7 +2216,7 @@ function initCategoryGrid(tabType = 'recommended', recordType = null) {
                 // 視覺反饋
                 const originalTransform = categoryItem.style.transform;
                 categoryItem.style.transform = 'scale(0.95)';
-                categoryItem.style.background = '#ffebee';
+                categoryItem.style.background = 'var(--bg-danger)';
                 
                 // 確認刪除
                 if (confirm(`確定要刪除自訂分類「${category.name}」嗎？\n\n此操作無法復原。`)) {
@@ -2481,7 +2529,10 @@ function initTabSwitching() {
 
 // 初始化 Header 標籤（支出/收入/轉帳）
 function initHeaderTabs() {
+    // 優先使用記帳輸入頁面的標籤，如果沒有則使用 Header 標籤
+    const recordTabs = document.querySelectorAll('.record-type-tab');
     const headerTabs = document.querySelectorAll('.header-tab');
+    const tabs = recordTabs.length > 0 ? recordTabs : headerTabs;
     
     // 初始化默認類型
     if (!window.accountingType) {
@@ -2489,7 +2540,7 @@ function initHeaderTabs() {
     }
     
     // 根據當前的 accountingType 設置正確的 active 狀態
-    headerTabs.forEach(tab => {
+    tabs.forEach(tab => {
         if (tab.dataset.type === window.accountingType) {
             tab.classList.add('active');
         } else {
@@ -2497,7 +2548,7 @@ function initHeaderTabs() {
         }
     });
     
-    headerTabs.forEach(tab => {
+    tabs.forEach(tab => {
         // 移除舊的事件監聽器（避免重複綁定）
         const newTab = tab.cloneNode(true);
         tab.parentNode.replaceChild(newTab, tab);
@@ -2511,13 +2562,28 @@ function initHeaderTabs() {
             const recordType = newTab.dataset.type;
             
             // 移除所有活動狀態
-            document.querySelectorAll('.header-tab').forEach(t => t.classList.remove('active'));
+            tabs.forEach(t => t.classList.remove('active'));
             
             // 添加活動狀態到當前按鈕
             newTab.classList.add('active');
             
             // 保存記錄類型
             window.accountingType = recordType;
+            
+            // 顯示或隱藏轉帳帳戶選擇區域
+            const transferSection = document.getElementById('transferAccountsSection');
+            if (transferSection) {
+                if (recordType === 'transfer') {
+                    transferSection.style.display = 'flex';
+                    // 初始化帳戶選項
+                    initTransferAccountSelects();
+                    // 重新初始化鍵盤，確保轉帳模式下可以正常輸入金額
+                    initKeyboard();
+                    expandInputSection();
+                } else {
+                    transferSection.style.display = 'none';
+                }
+            }
             
             // 重新初始化分類網格（顯示所有分類，不分類型）
             const activeTabBtn = document.querySelector('.tab-btn.active');
@@ -2531,6 +2597,96 @@ function initHeaderTabs() {
             });
         });
     });
+}
+
+// 初始化轉帳帳戶選擇器
+function initTransferAccountSelects() {
+    const fromSelect = document.getElementById('transferFromAccount');
+    const toSelect = document.getElementById('transferToAccount');
+
+    console.log('開始初始化轉帳帳戶選擇器');
+    console.log('fromSelect:', fromSelect);
+    console.log('toSelect:', toSelect);
+    
+    if (!fromSelect || !toSelect) {
+        console.log('轉帳帳戶選擇器元素不存在');
+        return;
+    }
+    
+    // 獲取所有帳戶
+    const accounts = typeof getAccounts === 'function' ? getAccounts() : [];
+    console.log('轉帳功能 - 找到帳戶數量:', accounts.length);
+    console.log('轉帳功能 - 帳戶列表:', accounts);
+    
+    // 清空選項
+    fromSelect.innerHTML = '<option value="">選擇帳戶</option>';
+    toSelect.innerHTML = '<option value="">選擇帳戶</option>';
+    
+    if (accounts.length === 0) {
+        // 沒有帳戶時顯示提示
+        fromSelect.innerHTML = '<option value="">請先建立帳戶</option>';
+        toSelect.innerHTML = '<option value="">請先建立帳戶</option>';
+        
+        // 顯示提示訊息
+        const transferSection = document.getElementById('transferAccountsSection');
+        if (transferSection) {
+            const existingHint = transferSection.querySelector('.transfer-account-hint');
+            if (!existingHint) {
+                const hint = document.createElement('div');
+                hint.className = 'transfer-account-hint';
+                hint.innerHTML = `
+                    <div style="text-align: center; padding: 8px; background: rgba(255, 107, 107, 0.1); border-radius: 8px; margin-top: 8px;">
+                        <p style="margin: 0; font-size: 14px; color: #ff6b6b;">📝 還沒有帳戶</p>
+                        <button onclick="showAccountManageModal()" style="margin-top: 4px; padding: 4px 12px; background: #ff6b6b; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">立即建立帳戶</button>
+                    </div>
+                `;
+                transferSection.appendChild(hint);
+            }
+        }
+        return;
+    }
+    
+    // 移除提示訊息（如果存在）
+    const transferSection = document.getElementById('transferAccountsSection');
+    if (transferSection) {
+        const hint = transferSection.querySelector('.transfer-account-hint');
+        if (hint) hint.remove();
+    }
+    
+    const bindExpandEvents = (element) => {
+        if (!element) return;
+        ['focus', 'click', 'change'].forEach(evt => {
+            element.addEventListener(evt, () => {
+                expandInputSection();
+            });
+        });
+    };
+
+    // 添加帳戶選項
+    accounts.forEach(account => {
+        const option = `<option value="${account.id}">${account.name} (${account.currency || 'TWD'})</option>`;
+        fromSelect.innerHTML += option;
+        toSelect.innerHTML += option;
+        console.log('添加帳戶選項:', account.name);
+    });
+
+    bindExpandEvents(fromSelect);
+    bindExpandEvents(toSelect);
+
+    // 設置預設選擇
+    const defaultAccount = getDefaultAccount();
+    if (defaultAccount) {
+        fromSelect.value = defaultAccount.id;
+        console.log('設置預設轉出帳戶:', defaultAccount.name);
+    }
+    
+    // 檢查最終結果
+    console.log('fromSelect options count:', fromSelect.options.length);
+    console.log('toSelect options count:', toSelect.options.length);
+    console.log('fromSelect HTML:', fromSelect.innerHTML);
+    console.log('toSelect HTML:', toSelect.innerHTML);
+    
+    console.log('轉帳帳戶選擇器初始化完成');
 }
 
 // 初始化鍵盤輸入
@@ -2733,8 +2889,9 @@ function initDateButton() {
     const dateInput = document.getElementById('dateInput');
     if (!dateInput) return;
     
-    // 初始化：設置今天日期
-    const today = new Date().toISOString().split('T')[0];
+    // 初始化：設置今天日期（使用本地時區避免凌晨12點問題）
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     dateInput.value = today;
     
     // 防止日期輸入框focus時自動滾動（手機適配）
@@ -2760,6 +2917,14 @@ function initQuickNotes() {
     const inputSection = document.getElementById('inputSection');
     
     if (!quickNotesContainer || !quickNotesButtons || !noteInput) return;
+    
+    // 載入上一次的備註
+    const lastNote = localStorage.getItem('lastQuickNote');
+    if (lastNote && !noteInput.value.trim()) {
+        noteInput.value = lastNote;
+        // 觸發input事件，確保其他監聽器能收到
+        noteInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
     
     // 當輸入區域顯示時，顯示常用備註按鈕
     const observer = new MutationObserver(() => {
@@ -2788,11 +2953,17 @@ function initQuickNotes() {
                     return;
                 }
                 // 如果輸入框已有內容，在後面追加；否則直接填入
+                let newValue;
                 if (currentValue) {
-                    noteInput.value = currentValue + ' ' + note;
+                    newValue = currentValue + ' ' + note;
                 } else {
-                    noteInput.value = note;
+                    newValue = note;
                 }
+                noteInput.value = newValue;
+                
+                // 儲存這次使用的備註作為「上一次的備註」
+                localStorage.setItem('lastQuickNote', newValue);
+                
                 // 觸發input事件，確保其他監聽器能收到
                 noteInput.dispatchEvent(new Event('input', { bubbles: true }));
                 // 聚焦到輸入框
@@ -2812,6 +2983,14 @@ function initQuickNotes() {
                 noteInput.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
             }
         }, 100);
+    });
+    
+    // 監聽備註輸入框的變化，如果用戶手動輸入或修改，也更新記憶
+    noteInput.addEventListener('input', () => {
+        const currentValue = noteInput.value.trim();
+        if (currentValue) {
+            localStorage.setItem('lastQuickNote', currentValue);
+        }
     });
     
     // 防止輸入框focus時自動滾動（手機適配）
@@ -3187,13 +3366,14 @@ function copyLastRecord() {
         }
     }
     
-    // 設置圖片（收據）
-    if (lastRecord.receiptImage) {
-        window.selectedReceiptImage = lastRecord.receiptImage;
+    // 設置圖片（收據）- 支援多張圖片
+    if (lastRecord.receiptImages && lastRecord.receiptImages.length > 0) {
+        window.selectedReceiptImages = [...lastRecord.receiptImages];
+        // 更新圖片預覽 UI（顯示第一張圖片作為預覽）
         const imagePreview = document.getElementById('imagePreview');
         const previewImage = document.getElementById('previewImage');
-        if (previewImage) {
-            previewImage.src = lastRecord.receiptImage;
+        if (previewImage && lastRecord.receiptImages[0]) {
+            previewImage.src = lastRecord.receiptImages[0];
         }
         if (imagePreview) {
             imagePreview.style.display = 'block';
@@ -3361,8 +3541,9 @@ function initSaveButton() {
         const nextMonthCheckbox = document.getElementById('nextMonthCheckbox');
         const isNextMonth = nextMonthCheckbox && nextMonthCheckbox.checked;
         
-        // 獲取日期
-        let date = new Date().toISOString().split('T')[0];
+        // 獲取日期（使用本地時區避免凌晨12點問題）
+        const now = new Date();
+        let date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
         if (dateInputEl && dateInputEl.value) {
             date = dateInputEl.value;
         }
@@ -3378,28 +3559,45 @@ function initSaveButton() {
         // 獲取記錄類型（默認為收入）
         const recordType = window.accountingType || 'income';
         
-        // 獲取選中的帳戶（如果沒有選中，自動使用默認帳戶）
-        let selectedAccount = getSelectedAccount();
-        
-        // 如果沒有選中帳戶，嘗試獲取默認帳戶
-        if (!selectedAccount) {
-            selectedAccount = getDefaultAccount();
-        }
-        
-        // 如果還是沒有帳戶，提示創建帳戶
-        if (!selectedAccount) {
-            if (confirm('您還沒有創建帳戶。\n\n是否現在創建帳戶？\n\n點擊「確定」創建帳戶，點擊「取消」稍後再說。')) {
-                showFirstTimeWelcome();
+        // 如果是轉帳類型，需要驗證帳戶選擇
+        if (recordType === 'transfer') {
+            const fromAccount = document.getElementById('transferFromAccount')?.value;
+            const toAccount = document.getElementById('transferToAccount')?.value;
+            
+            if (!fromAccount || !toAccount) {
+                alert('請選擇轉出和轉入帳戶');
+                return;
             }
-            return;
-        }
-        
-        // 如果之前沒有選中帳戶，現在自動選中默認帳戶
-        if (!window.selectedAccount && selectedAccount) {
-            window.selectedAccount = selectedAccount;
-            // 更新帳戶顯示
-            if (typeof updateAccountDisplay === 'function') {
-                updateAccountDisplay();
+            
+            if (fromAccount === toAccount) {
+                alert('轉出和轉入帳戶不能相同');
+                return;
+            }
+        } else {
+            // 非轉帳類型需要檢查帳戶
+            // 獲取選中的帳戶（如果沒有選中，自動使用默認帳戶）
+            let selectedAccount = getSelectedAccount();
+            
+            // 如果沒有選中帳戶，嘗試獲取默認帳戶
+            if (!selectedAccount) {
+                selectedAccount = getDefaultAccount();
+            }
+            
+            // 如果還是沒有帳戶，提示創建帳戶
+            if (!selectedAccount) {
+                if (confirm('您還沒有創建帳戶。\n\n是否現在創建帳戶？\n\n點擊「確定」創建帳戶，點擊「取消」稍後再說。')) {
+                    showAccountManageModal();
+                }
+                return;
+            }
+            
+            // 如果之前沒有選中帳戶，現在自動選中默認帳戶
+            if (!window.selectedAccount && selectedAccount) {
+                window.selectedAccount = selectedAccount;
+                // 更新帳戶顯示
+                if (typeof updateAccountDisplay === 'function') {
+                    updateAccountDisplay();
+                }
             }
         }
         
@@ -3409,8 +3607,8 @@ function initSaveButton() {
         // 獲取選中的成員
         const selectedMember = window.selectedMember || null;
         
-        // 獲取選中的圖片（收據）
-        const receiptImage = window.selectedReceiptImage || null;
+        // 獲取選中的圖片（收據）- 支援多張圖片
+        const receiptImages = window.selectedReceiptImages || [];
         
         // 創建記錄
         const record = {
@@ -3419,54 +3617,112 @@ function initSaveButton() {
             amount: amount,
             note: noteInput ? noteInput.value.trim() : '',
             date: date,
-            account: selectedAccount.id,
             emoji: selectedEmoji,
             member: selectedMember,
-            receiptImage: receiptImage, // 保存收據圖片
+            receiptImages: receiptImages, // 保存收據圖片陣列
             isNextMonthBill: isNextMonth, // 標記是否為下月帳單
             timestamp: new Date().toISOString()
         };
         
+        // 根據記錄類型設定帳戶欄位
+        if (recordType === 'transfer') {
+            record.fromAccount = document.getElementById('transferFromAccount')?.value || '';
+            record.toAccount = document.getElementById('transferToAccount')?.value || '';
+            // 轉帳記錄不需要 account 欄位
+        } else {
+            // 獲取選中的帳戶（非轉帳類型）
+            let selectedAccount = getSelectedAccount();
+            if (!selectedAccount) {
+                selectedAccount = getDefaultAccount();
+            }
+            record.account = selectedAccount?.id || '';
+        }
+        
         // 保存到 localStorage
-        let records = JSON.parse(localStorage.getItem('accountingRecords') || '[]');
-        records.push(record);
-        localStorage.setItem('accountingRecords', JSON.stringify(records));
+        try {
+            let records = JSON.parse(localStorage.getItem('accountingRecords') || '[]');
+            records.push(record);
+            
+            // 檢查記錄大小（特別是包含圖片時）
+            const recordSize = JSON.stringify(record).length;
+            const totalSize = JSON.stringify(records).length;
+            
+            console.log(`記錄大小: ${recordSize} 字符, 總大小: ${totalSize} 字符`);
+            
+            // 如果單筆記錄太大，給出警告
+            if (recordSize > 1000000) { // 1MB
+                console.warn('單筆記錄過大，可能包含大型圖片');
+                if (!confirm('這筆記錄包含的圖片較大，可能影響儲存效能。\n\n是否繼續儲存？')) {
+                    return;
+                }
+            }
+            
+            localStorage.setItem('accountingRecords', JSON.stringify(records));
+        } catch (error) {
+            console.error('保存記帳記錄失敗:', error);
+            
+            // 檢查是否是localStorage空間不足
+            if (error.name === 'QuotaExceededError') {
+                const receiptImagesCount = receiptImages.length;
+                let message = '儲存空間不足！\n\n可能原因：\n';
+                
+                if (receiptImagesCount > 0) {
+                    message += `1. 照片檔案太大（${receiptImagesCount}張）\n`;
+                    message += '2. 記錄數量過多\n\n';
+                    message += '建議：\n';
+                    message += '• 減少照片數量或壓縮照片\n';
+                    message += '• 刪除一些舊的記錄\n';
+                    message += '• 清除瀏覽器快取\n\n';
+                    message += '提示：您可以先不選擇照片，完成記帳後再編輯添加照片。';
+                } else {
+                    message += '1. 記錄數量過多\n\n';
+                    message += '建議：\n';
+                    message += '• 刪除一些舊的記錄\n';
+                    message += '• 清除瀏覽器快取';
+                }
+                
+                alert(message);
+            } else {
+                alert('保存記帳記錄失敗，請重試。\n\n錯誤：' + error.message);
+            }
+            return;
+        }
         
         // 如果是收入記錄，播放入帳音效
         if (recordType === 'income') {
             playIncomeSound(); // 播放入帳音效
         }
-        
+
         // 觸發小森對話系統（不搭配音效）
         if (typeof checkAndTriggerMoriDialog === 'function') {
-            checkAndTriggerMoriDialog(record, records);
+            checkAndTriggerMoriDialog(record);
         }
-        
+
         // 檢查連續記帳鼓勵
         if (typeof checkStreakEncouragementDialog === 'function') {
-            checkStreakEncouragementDialog(records);
+            checkStreakEncouragementDialog();
         }
-        
+
         // 檢查超支原因提示
         if (typeof checkOverspendReasonDialog === 'function') {
-            checkOverspendReasonDialog(records);
+            checkOverspendReasonDialog();
         }
-        
+
         // 更新帳戶顯示
         if (typeof updateAccountDisplay === 'function') {
             updateAccountDisplay();
         }
         
-        // 重置表單
+        // 重置表單（保留備註以便繼續使用）
         amountDisplay.textContent = '0';
-        if (noteInput) noteInput.value = '';
+        // 備註欄位不清除，讓用戶可以繼續使用上一次的備註
         document.querySelectorAll('.category-item').forEach(item => {
             item.classList.remove('selected');
         });
         window.selectedCategory = null;
         window.selectedEmoji = null;
         window.selectedMember = null;
-        window.selectedReceiptImage = null;
+        window.selectedReceiptImages = [];
         
         // 重置成員顯示
         const memberDisplay = document.getElementById('memberDisplay');
@@ -3487,10 +3743,11 @@ function initSaveButton() {
         if (imagePreviewReset) imagePreviewReset.style.display = 'none';
         if (previewImageReset) previewImageReset.src = '';
         
-        // 重置日期為今天
+        // 重置日期為今天（使用本地時區避免凌晨12點問題）
         const dateInputReset = document.getElementById('dateInput');
         if (dateInputReset) {
-            const today = new Date().toISOString().split('T')[0];
+            const now = new Date();
+            const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
             dateInputReset.value = today;
         }
         
@@ -3523,15 +3780,10 @@ function initSaveButton() {
         // 顯示成功訊息
         alert('記帳成功！');
         
-        // 如果記帳本頁面可見，更新顯示
-        const pageLedger = document.getElementById('pageLedger');
-        if (pageLedger && pageLedger.style.display !== 'none') {
-            initLedger();
-        }
+        // 跳回首頁（記帳本頁面）
+        goBackToLedger();
     });
 }
-
-// ========== 投資專區功能 ==========
 
 // 投資記錄數據結構
 // buy: { stockCode, stockName, date, price, shares, fee, isDCA, note, timestamp }
@@ -3712,7 +3964,8 @@ function initSummaryToggle() {
 
 // 檢查並執行到期的預約買入
 function checkScheduledBuys() {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     let scheduled = JSON.parse(localStorage.getItem(SCHEDULED_BUY_STORAGE_KEY) || '[]');
     if (!Array.isArray(scheduled) || scheduled.length === 0) return;
     
@@ -3809,13 +4062,16 @@ function initInvestmentPage() {
     const dividendDate = document.getElementById('dividendDate');
     
     if (buyDate && !buyDate.value) {
-        buyDate.value = new Date().toISOString().split('T')[0];
+        const now = new Date();
+        buyDate.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     }
     if (sellDate && !sellDate.value) {
-        sellDate.value = new Date().toISOString().split('T')[0];
+        const now = new Date();
+        sellDate.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     }
     if (dividendDate && !dividendDate.value) {
-        dividendDate.value = new Date().toISOString().split('T')[0];
+        const now = new Date();
+        dividendDate.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     }
     
     // 摘要按鈕切換
@@ -5173,7 +5429,8 @@ function initBuyForm() {
             const buyFee = parseFloat(document.getElementById('buyFee').value) || 0;
             const isDCA = document.getElementById('isDCA').checked;
             const buyNote = document.getElementById('buyNote').value.trim();
-            const todayStr = new Date().toISOString().split('T')[0];
+            const now = new Date();
+            const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
             
             if (!stockCode || !buyDate || !buyPrice || !buyShares) {
                 alert('請填寫所有必填欄位');
@@ -5359,7 +5616,8 @@ function initSellForm() {
             
             // 重置表單
             sellStockCode.value = '';
-            document.getElementById('sellDate').value = new Date().toISOString().split('T')[0];
+            const now = new Date();
+            document.getElementById('sellDate').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
             sellPrice.value = '';
             sellShares.value = '';
             document.getElementById('sellFee').value = '0';
@@ -5479,8 +5737,8 @@ function initDividendForm() {
                 
                 // 如果有有效的買入價格，計算並創建買入記錄
                 if (buyPrice > 0) {
-                    const fee = 0;
-                    const availableAmount = amount;
+                    const reinvestFee = calculateInvestmentFee(amount);
+                    const availableAmount = Math.max(amount - reinvestFee, 0);
                     const buyShares = Math.floor(availableAmount / buyPrice); // 向下取整
                     
                     if (buyShares > 0) {
@@ -5491,17 +5749,38 @@ function initDividendForm() {
                             date: dividendDate,
                             price: buyPrice,
                             shares: buyShares,
-                            fee: fee,
+                            fee: reinvestFee,
                             isDividendReinvest: true, // 標記為股利再投入
                             dividendRecordId: dividendRecord.timestamp, // 關聯的股利記錄ID
                             note: `股利再投入（來自 ${dividendDate} 現金股利，使用${savedPrice ? '現價' : avgCost ? '平均成本' : '手動輸入價格'}）${dividendNote ? ' - ' + dividendNote : ''}`,
                             timestamp: new Date().toISOString()
                         };
                         records.push(buyRecord);
+                        
+                        // 創建記帳本轉帳記錄（從現金帳戶轉到投資帳戶）
+                        try {
+                            const accountingRecords = JSON.parse(localStorage.getItem('accountingRecords') || '[]');
+                            const transferRecord = {
+                                type: 'transfer',
+                                category: '股票再投入',
+                                amount: amount, // 股利金額
+                                note: `股利再投入：${stockCode} ${buyShares}股 @ NT$${buyPrice.toFixed(2)}`,
+                                date: dividendDate,
+                                fromAccount: '現金', // 從現金帳戶
+                                toAccount: '投資', // 到投資帳戶
+                                linkedInvestment: true,
+                                investmentRecordId: buyRecord.timestamp,
+                                timestamp: new Date().toISOString()
+                            };
+                            accountingRecords.push(transferRecord);
+                            localStorage.setItem('accountingRecords', JSON.stringify(accountingRecords));
+                            console.log('已創建股利再投入轉帳記錄');
+                        } catch (e) {
+                            console.warn('創建股利再投入轉帳記錄失敗:', e);
+                        }
                     } else {
                         // 顯示通知：不足以買入至少1股
-                        const availableAmount = amount;
-                        alert(`⚠️ 股利再投入金額不足\n\n股利金額：NT$${amount.toLocaleString('zh-TW')}\n可用金額：NT$${availableAmount.toLocaleString('zh-TW')}\n股票現價：NT$${buyPrice.toFixed(2)}\n\n可用金額不足以買入至少1股（需要至少 NT$${buyPrice.toLocaleString('zh-TW')}）`);
+                        alert(`⚠️ 股利再投入金額不足\n\n股利金額：NT$${amount.toLocaleString('zh-TW')}\n手續費：NT$${reinvestFee.toLocaleString('zh-TW')}\n可用金額：NT$${availableAmount.toLocaleString('zh-TW')}\n股票現價：NT$${buyPrice.toFixed(2)}\n\n可用金額不足以買入至少1股（需要至少 NT$${buyPrice.toLocaleString('zh-TW')}）`);
                     }
                 }
             }
@@ -5510,7 +5789,8 @@ function initDividendForm() {
     
     // 重置表單
             document.getElementById('dividendStockCode').value = '';
-            document.getElementById('dividendDate').value = new Date().toISOString().split('T')[0];
+            const now = new Date();
+            document.getElementById('dividendDate').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
             document.getElementById('dividendPerShare').value = '';
             document.getElementById('dividendShares').value = '';
             document.getElementById('dividendAmount').value = '';
@@ -6210,6 +6490,7 @@ function updateInvestmentSummary() {
     const unrealizedPnlEl = document.getElementById('unrealizedPnl');
     const yearDividendEl = document.getElementById('yearDividend');
     const annualReturnEl = document.getElementById('annualReturn');
+    const stockBondSummaryEl = document.getElementById('stockBondSummaryValue');
     const summaryToggleInvested = document.getElementById('summaryToggleInvested');
     const summaryTogglePnl = document.getElementById('summaryTogglePnl');
     const summaryToggleReturn = document.getElementById('summaryToggleReturn');
@@ -6284,6 +6565,18 @@ function updateInvestmentSummary() {
                 summaryToggleReturn.textContent = '--';
                 summaryToggleReturn.className = 'summary-toggle__metric-value neutral';
             }
+        }
+    }
+
+    if (stockBondSummaryEl) {
+        const values = computeStockBondMarketValues();
+        const totalValue = values.totalValue || 0;
+        if (totalValue > 0) {
+            const stockPct = values.stockValue / totalValue;
+            const bondPct = values.bondValue / totalValue;
+            stockBondSummaryEl.textContent = `股 ${formatPct(stockPct)} / 債 ${formatPct(bondPct)}`;
+        } else {
+            stockBondSummaryEl.textContent = '尚無資料';
         }
     }
 }
@@ -6833,6 +7126,7 @@ function initBottomNav() {
                     try {
                         initInvestmentPage();
                         console.log('投資專區初始化完成');
+                        autoLoadStockPrices().catch(() => {});
                     } catch (error) {
                         console.error('投資專區初始化錯誤:', error);
                     }
@@ -6888,21 +7182,9 @@ function initBottomNav() {
                 }
             }
             
-            // 顯示對應頁面的教學（首次進入時）
+            // 教學功能已移除
             setTimeout(() => {
-                if (page === 'ledger') {
-                    showPageTutorial('ledger');
-                } else if (page === 'wallet') {
-                    showPageTutorial('wallet');
-                } else if (page === 'monthlyPlanner') {
-                    showPageTutorial('wallet');
-                } else if (page === 'investment') {
-                    showPageTutorial('investment');
-                } else if (page === 'chart') {
-                    showPageTutorial('chart');
-                } else if (page === 'settings') {
-                    showPageTutorial('settings');
-                }
+                // 教學彈窗功能已禁用
             }, 300);
         });
     });
@@ -7028,7 +7310,8 @@ function initMonthlyPlannerPage() {
             fixed: [],
             savings: [],
             personal: []
-        }
+        },
+        currentSavingsFilter: 'all' // 新增儲蓄過濾器狀態
     };
 
     const savingGoalsKey = 'savingGoals';
@@ -7040,7 +7323,8 @@ function initMonthlyPlannerPage() {
             id: safe.id || newId(),
             name: safe.name != null ? String(safe.name) : '',
             amount: readNumber(safe.amount),
-            note: safe.note != null ? String(safe.note) : ''
+            note: safe.note != null ? String(safe.note) : '',
+            type: safe.type || (safe.name && safe.name.includes('存股') ? 'stock' : 'savings') // 自動識別類型
         };
     };
 
@@ -7080,18 +7364,31 @@ function initMonthlyPlannerPage() {
         const items = state.items[groupKey] || [];
         if (!containerEl) return;
 
-        if (!items.length) {
-            containerEl.innerHTML = '<div class="monthly-planner-empty">尚未新增項目</div>';
+        // 如果是儲蓄群組，需要根據過濾器篩選
+        let filteredItems = items;
+        if (groupKey === 'savings' && state.currentSavingsFilter !== 'all') {
+            filteredItems = items.filter(item => item.type === state.currentSavingsFilter);
+        }
+
+        if (!filteredItems.length) {
+            const emptyText = groupKey === 'savings' && state.currentSavingsFilter !== 'all' 
+                ? `尚未新增${state.currentSavingsFilter === 'stock' ? '存股' : '儲蓄'}項目` 
+                : '尚未新增項目';
+            containerEl.innerHTML = `<div class="monthly-planner-empty">${emptyText}</div>`;
             return;
         }
 
-        containerEl.innerHTML = items.map((it) => {
+        containerEl.innerHTML = filteredItems.map((it) => {
             const safeName = String(it.name || '').replace(/"/g, '&quot;');
             const safeNote = String(it.note || '').replace(/"/g, '&quot;');
             const safeAmount = Number.isFinite(it.amount) ? it.amount : 0;
+            const itemType = it.type || 'savings';
+            const itemIcon = itemType === 'stock' ? '📈' : '💰';
+            
             return `
-                <div class="monthly-planner-item-row" data-group="${groupKey}" data-id="${it.id}">
-                    <input class="monthly-planner-item-name" type="text" placeholder="項目" value="${safeName}">
+                <div class="monthly-planner-item-row savings-item-row" data-group="${groupKey}" data-id="${it.id}" data-type="${itemType}">
+                    <span class="savings-item-icon">${itemIcon}</span>
+                    <input class="monthly-planner-item-name savings-item-name" type="text" placeholder="項目" value="${safeName}">
                     <input class="monthly-planner-item-amount" type="number" min="0" step="1" placeholder="金額" value="${safeAmount}">
                     <input class="monthly-planner-item-note" type="text" placeholder="說明" value="${safeNote}">
                     <button class="monthly-planner-item-delete" type="button">✕</button>
@@ -7115,7 +7412,8 @@ function initMonthlyPlannerPage() {
                     ...current,
                     name: nameEl ? nameEl.value : current.name,
                     amount: readNumber(amountEl ? amountEl.value : current.amount),
-                    note: noteEl ? noteEl.value : current.note
+                    note: noteEl ? noteEl.value : current.note,
+                    type: current.type || 'savings' // 保持原有類型
                 };
                 renderTotals();
             };
@@ -7154,7 +7452,8 @@ function initMonthlyPlannerPage() {
                     fixed: Array.isArray(data.items && data.items.fixed) ? data.items.fixed.map(normalizeItem) : [],
                     savings: Array.isArray(data.items && data.items.savings) ? data.items.savings.map(normalizeItem) : [],
                     personal: Array.isArray(data.items && data.items.personal) ? data.items.personal.map(normalizeItem) : []
-                }
+                },
+                currentSavingsFilter: 'all' // 確保過濾器狀態正確初始化
             };
 
             incomeInput.value = state.income > 0 ? String(state.income) : '';
@@ -7276,6 +7575,246 @@ function initMonthlyPlannerPage() {
         renderAll();
     };
 
+    // 新增儲蓄類型選擇對話框
+    const showSavingsTypeDialog = (onSelect) => {
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        `;
+
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 320px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        `;
+
+        dialog.innerHTML = `
+            <h3 style="margin: 0 0 20px 0; font-size: 18px; color: var(--text-primary);">選擇儲蓄類型</h3>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <button class="savings-type-option" data-type="stock" style="
+                    padding: 16px;
+                    border: 2px solid var(--color-primary);
+                    border-radius: 12px;
+                    background: rgba(var(--color-primary-rgb), 0.1);
+                    color: var(--color-primary);
+                    font-size: 16px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                ">📈 存股</button>
+                <button class="savings-type-option" data-type="savings" style="
+                    padding: 16px;
+                    border: 2px solid var(--color-success);
+                    border-radius: 12px;
+                    background: rgba(var(--color-success-rgb), 0.1);
+                    color: var(--color-success);
+                    font-size: 16px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                ">💰 一般儲蓄</button>
+            </div>
+            <button class="savings-type-cancel" style="
+                margin-top: 20px;
+                padding: 12px;
+                border: none;
+                border-radius: 8px;
+                background: var(--bg-light);
+                color: var(--text-secondary);
+                font-size: 14px;
+                cursor: pointer;
+                width: 100%;
+            ">取消</button>
+        `;
+
+        modal.appendChild(dialog);
+        document.body.appendChild(modal);
+
+        // 綁定事件
+        dialog.querySelectorAll('.savings-type-option').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const type = btn.dataset.type;
+                document.body.removeChild(modal);
+                if (onSelect) onSelect(type);
+            });
+        });
+
+        dialog.querySelector('.savings-type-cancel').addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        });
+    };
+
+    // 儲蓄模板功能
+    const savingsTemplates = {
+        stock: [
+            { name: '定期定額存股', amount: 3000, note: '每月固定購買優質股票' },
+            { name: 'ETF投資', amount: 5000, note: '追蹤大盤指數ETF' },
+            { name: '股利再投入', amount: 2000, note: '將股利自動再投資' },
+            { name: '成長股投資', amount: 4000, note: '專注高成長潛力股票' }
+        ],
+        savings: [
+            { name: '緊急預備金', amount: 2000, note: '3-6個月生活費' },
+            { name: '退休儲蓄', amount: 5000, note: '長期退休規劃' },
+            { name: '教育基金', amount: 3000, note: '子女教育費用' },
+            { name: '旅遊基金', amount: 1500, note: '年度旅遊計畫' },
+            { name: '購屋基金', amount: 8000, note: '房屋頭期款準備' },
+            { name: '投資理財', amount: 2500, note: '多元化投資配置' }
+        ]
+    };
+
+    const showSavingsTemplatesDialog = () => {
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        `;
+
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 400px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        `;
+
+        let templatesHtml = '';
+        
+        // 存股模板
+        templatesHtml += `
+            <div style="margin-bottom: 24px;">
+                <h4 style="margin: 0 0 12px 0; color: var(--color-primary); font-size: 16px; font-weight: 600;">📈 存股模板</h4>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+        `;
+        
+        savingsTemplates.stock.forEach((template, index) => {
+            templatesHtml += `
+                <button class="savings-template-btn" data-type="stock" data-index="${index}" style="
+                    padding: 12px;
+                    border: 1px solid var(--border-light);
+                    border-radius: 8px;
+                    background: var(--bg-card);
+                    text-align: left;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                ">
+                    <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">${template.name}</div>
+                    <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 4px;">${template.note}</div>
+                    <div style="font-size: 16px; font-weight: 700; color: var(--color-primary);">NT$${template.amount.toLocaleString()}</div>
+                </button>
+            `;
+        });
+        
+        templatesHtml += `
+                </div>
+            </div>
+        `;
+
+        // 一般儲蓄模板
+        templatesHtml += `
+            <div style="margin-bottom: 20px;">
+                <h4 style="margin: 0 0 12px 0; color: var(--color-success); font-size: 16px; font-weight: 600;">💰 一般儲蓄模板</h4>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+        `;
+        
+        savingsTemplates.savings.forEach((template, index) => {
+            templatesHtml += `
+                <button class="savings-template-btn" data-type="savings" data-index="${index}" style="
+                    padding: 12px;
+                    border: 1px solid var(--border-light);
+                    border-radius: 8px;
+                    background: var(--bg-card);
+                    text-align: left;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                ">
+                    <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">${template.name}</div>
+                    <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 4px;">${template.note}</div>
+                    <div style="font-size: 16px; font-weight: 700; color: var(--color-success);">NT$${template.amount.toLocaleString()}</div>
+                </button>
+            `;
+        });
+        
+        templatesHtml += `
+                </div>
+            </div>
+        `;
+
+        dialog.innerHTML = `
+            <h3 style="margin: 0 0 20px 0; font-size: 18px; color: var(--text-primary);">快速新增儲蓄項目</h3>
+            ${templatesHtml}
+            <button class="savings-template-cancel" style="
+                margin-top: 20px;
+                padding: 12px;
+                border: none;
+                border-radius: 8px;
+                background: var(--bg-light);
+                color: var(--text-secondary);
+                font-size: 14px;
+                cursor: pointer;
+                width: 100%;
+            ">取消</button>
+        `;
+
+        modal.appendChild(dialog);
+        document.body.appendChild(modal);
+
+        // 綁定事件
+        dialog.querySelectorAll('.savings-template-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const type = btn.dataset.type;
+                const index = parseInt(btn.dataset.index);
+                const template = savingsTemplates[type][index];
+                
+                document.body.removeChild(modal);
+                addItem('savings', {
+                    ...template,
+                    type: type
+                });
+            });
+        });
+
+        dialog.querySelector('.savings-template-cancel').addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        });
+    };
+
     const loadSavingGoals = () => {
         try {
             const raw = localStorage.getItem(savingGoalsKey);
@@ -7325,23 +7864,30 @@ function initMonthlyPlannerPage() {
             const eta = monthsNeed != null ? new Date(baseMonth.getFullYear(), baseMonth.getMonth() + monthsNeed, 1) : null;
             const percent = g.target > 0 ? Math.min(100, (g.saved / g.target) * 100) : 0;
 
+            const isCompleted = percent >= 100;
+            const statusClass = isCompleted ? 'goal-completed' : '';
+            const statusIcon = isCompleted ? '🎉' : '';
+            const statusText = isCompleted ? '已達成！' : '';
+            
             return `
-                <div class="monthly-planner-goal-card" data-id="${g.id}">
+                <div class="monthly-planner-goal-card ${statusClass}" data-id="${g.id}">
                     <div class="monthly-planner-goal-head">
-                        <div class="monthly-planner-goal-name">${String(g.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+                        <div class="monthly-planner-goal-name">${statusIcon}${String(g.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
                         <button class="monthly-planner-goal-delete" type="button">✕</button>
                     </div>
                     <div class="monthly-planner-goal-meta">
                         <div>目標：${formatTwd(g.target)}</div>
                         <div>已存：${formatTwd(g.saved)}</div>
+                        <div>剩餘：${formatTwd(remaining)}</div>
                         <div>每月：${formatTwd(g.monthly)}</div>
                     </div>
                     <div class="monthly-planner-goal-progress">
                         <div class="monthly-planner-goal-bar">
                             <div class="monthly-planner-goal-bar-fill" style="width: ${percent.toFixed(1)}%"></div>
                         </div>
-                        <div class="monthly-planner-goal-progress-text">${percent.toFixed(1)}%</div>
+                        <div class="monthly-planner-goal-progress-text">${percent.toFixed(1)}% (${g.saved.toLocaleString()} / ${g.target.toLocaleString()})</div>
                     </div>
+                    ${statusText ? `<div class="monthly-planner-goal-status">${statusText}</div>` : ''}
                     <div class="monthly-planner-goal-eta">
                         ${canEstimate ? `預計達成：${eta ? formatMonthText(eta) : '-' }（約 ${monthsNeed} 個月）` : '請輸入目標金額與每月存入，才能預估達成時間。'}
                     </div>
@@ -7395,8 +7941,8 @@ function initMonthlyPlannerPage() {
         ].map(normalizeItem);
 
         state.items.savings = [
-            { id: newId(), name: '存股', amount: 1000, note: '暫時壓低，等分期結束再加碼' },
-            { id: newId(), name: '預備金儲蓄', amount: 800, note: '每月先小額存' }
+            { id: newId(), name: '存股', amount: 1000, note: '暫時壓低，等分期結束再加碼', type: 'stock' },
+            { id: newId(), name: '預備金儲蓄', amount: 800, note: '每月先小額存', type: 'savings' }
         ].map(normalizeItem);
 
         state.items.personal = [
@@ -7426,10 +7972,34 @@ function initMonthlyPlannerPage() {
     };
 
     bindOnce(addFixedBtn, 'click', () => addItem('fixed'));
-    bindOnce(addSavingsBtn, 'click', () => addItem('savings'));
+    bindOnce(addSavingsBtn, 'click', () => {
+        showSavingsTypeDialog((type) => {
+            addItem('savings', { type });
+        });
+    });
     bindOnce(addPersonalBtn, 'click', () => addItem('personal'));
     bindOnce(applySampleBtn, 'click', () => applySample());
     bindOnce(saveBtn, 'click', () => save());
+
+    // 綁定快速新增按鈕
+    const quickAddBtn = document.getElementById('monthlyPlannerQuickAddBtn');
+    bindOnce(quickAddBtn, 'click', () => {
+        showSavingsTemplatesDialog();
+    });
+
+    // 綁定儲蓄類型標籤切換事件
+    const savingsTabs = document.querySelectorAll('.savings-type-tab');
+    savingsTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            // 更新活動標籤
+            savingsTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            
+            // 更新過濾器並重新渲染
+            state.currentSavingsFilter = tab.dataset.type;
+            renderGroup('savings', savingsListEl);
+        });
+    });
 
     bindOnce(goalAddBtn, 'click', () => {
         if (!goalNameInput || !goalTargetInput || !goalMonthlyInput) return;
@@ -7826,6 +8396,11 @@ function displayLedgerTransactions(records, showAll = false) {
     const ledgerList = document.getElementById('ledgerList');
     if (!ledgerList) return;
     
+    // 確保 records 是一個有效的陣列
+    if (!records || !Array.isArray(records)) {
+        records = [];
+    }
+    
     if (records.length === 0) {
         ledgerList.innerHTML = '<div class="empty-state">尚無交易記錄</div>';
         return;
@@ -7972,12 +8547,38 @@ function displayLedgerTransactions(records, showAll = false) {
             const noteIcon = getNoteIcon(record.note);
             const noteDisplay = record.note ? noteIcon + record.note : '';
             
-            // 收據圖片顯示
+            // 收據圖片顯示 - 支援多張圖片
             let receiptImageHtml = '';
-            if (record.receiptImage) {
+            if (record.receiptImages && record.receiptImages.length > 0) {
+                if (record.receiptImages.length === 1) {
+                    // 單張圖片顯示
+                    receiptImageHtml = `
+                        <div class="transaction-receipt" style="margin-top: 8px;">
+                            <img src="${record.receiptImages[0]}" alt="收據" class="receipt-thumbnail" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; cursor: pointer; border: 2px solid #e0e0e0;" data-receipt-images='${JSON.stringify(record.receiptImages)}' data-record-timestamp="${record.timestamp || ''}">
+                        </div>
+                    `;
+                } else {
+                    // 多張圖片顯示為縮圖畫廊
+                    const thumbnails = record.receiptImages.slice(0, 3).map((img, index) => 
+                        `<img src="${img}" alt="收據${index + 1}" class="receipt-thumbnail-small" style="width: 30px; height: 30px; object-fit: cover; border-radius: 4px; border: 1px solid #e0e0e0; margin-right: 4px;">`
+                    ).join('');
+                    
+                    const moreText = record.receiptImages.length > 3 ? `+${record.receiptImages.length - 3}` : '';
+                    
+                    receiptImageHtml = `
+                        <div class="transaction-receipt-gallery" style="margin-top: 8px; cursor: pointer;" data-receipt-images='${JSON.stringify(record.receiptImages)}' data-record-timestamp="${record.timestamp || ''}">
+                            <div class="receipt-thumbnails" style="display: flex; align-items: center;">
+                                ${thumbnails}
+                                ${moreText ? `<span style="font-size: 12px; color: #666; margin-left: 4px;">${moreText}</span>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }
+            } else if (record.receiptImage) {
+                // 向後相容舊的單張圖片格式
                 receiptImageHtml = `
                     <div class="transaction-receipt" style="margin-top: 8px;">
-                        <img src="${record.receiptImage}" alt="收據" class="receipt-thumbnail" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; cursor: pointer; border: 2px solid #e0e0e0;" data-receipt-image="${record.receiptImage}">
+                        <img src="${record.receiptImage}" alt="收據" class="receipt-thumbnail" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; cursor: pointer; border: 2px solid #e0e0e0;" data-receipt-image="${record.receiptImage}" data-record-timestamp="${record.timestamp || ''}">
                     </div>
                 `;
             }
@@ -8037,12 +8638,36 @@ function displayLedgerTransactions(records, showAll = false) {
     
     ledgerList.innerHTML = html;
     
+    // 添加交易項目點擊事件監聽器
+    addTransactionClickHandlers();
+    
     // 綁定收據圖片點擊事件（查看大圖）
     ledgerList.querySelectorAll('.receipt-thumbnail').forEach(img => {
         img.addEventListener('click', () => {
             const imageUrl = img.getAttribute('data-receipt-image');
             if (imageUrl) {
                 showReceiptImageModal(imageUrl);
+            }
+        });
+    });
+    
+    // 綁定多圖片庫點擊事件
+    ledgerList.querySelectorAll('.transaction-receipt-gallery').forEach(gallery => {
+        gallery.addEventListener('click', () => {
+            const imagesData = gallery.getAttribute('data-receipt-images');
+            const timestamp = gallery.getAttribute('data-record-timestamp');
+            if (imagesData) {
+                try {
+                    const images = JSON.parse(imagesData);
+                    // 找到對應的記錄並顯示詳情
+                    const records = JSON.parse(localStorage.getItem('records') || '[]');
+                    const record = records.find(r => r.timestamp === timestamp);
+                    if (record) {
+                        showEntryDetail(record);
+                    }
+                } catch (error) {
+                    console.error('解析圖片數據失敗:', error);
+                }
             }
         });
     });
@@ -8524,70 +9149,99 @@ function showHistoryBackgroundSelector(modalContent) {
     fileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (file) {
-            // 檢查文件大小（限制為 10MB）
-            if (file.size > 10 * 1024 * 1024) {
-                alert('圖片太大！請選擇小於 10MB 的圖片。');
+            // 檢查文件大小（手機放寬限制到 20MB）
+            const maxSize = 20 * 1024 * 1024; // 20MB
+            if (file.size > maxSize) {
+                alert(`圖片太大！請選擇小於 ${Math.round(maxSize / 1024 / 1024)}MB 的圖片。\n目前檔案大小：${Math.round(file.size / 1024 / 1024)}MB`);
                 fileInput.value = '';
                 return;
             }
             
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                let imageData = event.target.result;
-                
-                // 壓縮圖片（背景圖片使用較大尺寸和較高質量）
-                if (typeof compressImage === 'function') {
-                    try {
-                        imageData = await compressImage(imageData, 1920, 1080, 0.8);
-                        console.log('背景圖片已壓縮');
-                    } catch (error) {
-                        console.error('圖片壓縮失敗:', error);
+            // 顯示上傳進度提示
+            const progressMsg = document.createElement('div');
+            progressMsg.textContent = '正在處理圖片，請稍候...';
+            progressMsg.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 15px 25px; border-radius: 8px; z-index: 10000;';
+            document.body.appendChild(progressMsg);
+            
+            try {
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    let imageData = event.target.result;
+                    
+                    // 壓縮圖片（針對手機優化：更小尺寸，適中品質）
+                    if (typeof compressImage === 'function') {
+                        try {
+                            // 手機使用更激進的壓縮
+                            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                            const maxWidth = isMobile ? 1280 : 1920;
+                            const maxHeight = isMobile ? 720 : 1080;
+                            const quality = isMobile ? 0.6 : 0.8;
+                            
+                            imageData = await compressImage(imageData, maxWidth, maxHeight, quality);
+                            console.log('背景圖片已壓縮（手機優化）');
+                        } catch (error) {
+                            console.error('圖片壓縮失敗:', error);
+                            // 壓縮失敗時使用原始圖片
+                        }
                     }
-                }
-                
-                // 保存到自訂背景列表
-                const customBackgrounds = JSON.parse(localStorage.getItem('customHistoryBackgrounds') || '[]');
-                const newBackground = {
-                    id: 'custom-' + Date.now(),
-                    url: imageData,
-                    name: file.name || '自訂背景',
-                    date: new Date().toISOString()
+                    
+                    // 保存到自訂背景列表
+                    const customBackgrounds = JSON.parse(localStorage.getItem('customHistoryBackgrounds') || '[]');
+                    const newBackground = {
+                        id: 'custom-' + Date.now(),
+                        url: imageData,
+                        name: file.name || '自訂背景',
+                        date: new Date().toISOString(),
+                        originalSize: file.size,
+                        compressed: imageData !== event.target.result
+                    };
+                    customBackgrounds.push(newBackground);
+                    localStorage.setItem('customHistoryBackgrounds', JSON.stringify(customBackgrounds));
+                    
+                    // 移除進度提示
+                    document.body.removeChild(progressMsg);
+                    
+                    // 重新渲染背景選項
+                    const grid = backgroundModal.querySelector('.background-options-grid');
+                    if (grid) {
+                        const savedBackground = localStorage.getItem('historyBackground') || '';
+                        const allOptions = [
+                            ...backgroundOptions.filter(opt => !opt.isCustom),
+                            ...customBackgrounds.map((bg, index) => ({ url: bg.url, name: bg.name || `自訂背景 ${index + 1}`, isCustom: true, id: bg.id || `custom-${index}` }))
+                        ];
+                        grid.innerHTML = allOptions.map((option, index) => {
+                            const isSelected = (option.url === savedBackground) || (option.url === '' && savedBackground === '');
+                            return `
+                                <div class="background-option ${isSelected ? 'selected' : ''}" data-url="${option.url}" data-custom="${option.isCustom ? 'true' : 'false'}" data-id="${option.id || ''}" style="position: relative; cursor: pointer; border-radius: 12px; overflow: hidden; border: 3px solid ${isSelected ? 'var(--color-primary)' : 'transparent'}; transition: all 0.2s;">
+                                    ${option.url ? `
+                                        <img src="${option.url}" alt="${option.name}" style="width: 100%; height: 120px; object-fit: cover; display: block;">
+                                    ` : `
+                                        <div style="width: 100%; height: 120px; background: var(--bg-light); display: flex; align-items: center; justify-content: center; color: var(--text-secondary); font-size: 14px;">無背景</div>
+                                    `}
+                                    <div style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.6); color: white; padding: 6px; font-size: 12px; text-align: center;">${option.name}</div>
+                                    ${isSelected ? '<div style="position: absolute; top: 8px; right: 8px; background: var(--color-primary); color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px;">✓</div>' : ''}
+                                    ${option.isCustom ? '<button class="delete-custom-background-btn" data-id="' + (option.id || '') + '" style="position: absolute; top: 8px; left: 8px; background: rgba(255,0,0,0.8); color: white; border: none; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; z-index: 10;" title="刪除">×</button>' : ''}
+                                </div>
+                            `;
+                        }).join('');
+                        bindBackgroundEvents();
+                    }
+
+                    fileInput.value = '';
                 };
-                customBackgrounds.push(newBackground);
-                localStorage.setItem('customHistoryBackgrounds', JSON.stringify(customBackgrounds));
-                
-                // 重新渲染背景選項
-                const grid = backgroundModal.querySelector('.background-options-grid');
-                if (grid) {
-                    const savedBackground = localStorage.getItem('historyBackground') || '';
-                    const allOptions = [
-                        ...backgroundOptions.filter(opt => !opt.isCustom),
-                        ...customBackgrounds.map((bg, index) => ({ url: bg.url, name: bg.name || `自訂背景 ${index + 1}`, isCustom: true, id: bg.id || `custom-${index}` }))
-                    ];
-                    grid.innerHTML = allOptions.map((option, index) => {
-                        const isSelected = (option.url === savedBackground) || (option.url === '' && savedBackground === '');
-                        return `
-                            <div class="background-option ${isSelected ? 'selected' : ''}" data-url="${option.url}" data-custom="${option.isCustom ? 'true' : 'false'}" data-id="${option.id || ''}" style="position: relative; cursor: pointer; border-radius: 12px; overflow: hidden; border: 3px solid ${isSelected ? 'var(--color-primary)' : 'transparent'}; transition: all 0.2s;">
-                                ${option.url ? `
-                                    <img src="${option.url}" alt="${option.name}" style="width: 100%; height: 120px; object-fit: cover; display: block;">
-                                ` : `
-                                    <div style="width: 100%; height: 120px; background: var(--bg-light); display: flex; align-items: center; justify-content: center; color: var(--text-secondary); font-size: 14px;">無背景</div>
-                                `}
-                                <div style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.6); color: white; padding: 6px; font-size: 12px; text-align: center;">${option.name}</div>
-                                ${isSelected ? '<div style="position: absolute; top: 8px; right: 8px; background: var(--color-primary); color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px;">✓</div>' : ''}
-                                ${option.isCustom ? '<button class="delete-custom-background-btn" data-id="' + (option.id || '') + '" style="position: absolute; top: 8px; left: 8px; background: rgba(255,0,0,0.8); color: white; border: none; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; z-index: 10;" title="刪除">×</button>' : ''}
-                            </div>
-                        `;
-                    }).join('');
-                    bindBackgroundEvents();
+                reader.readAsDataURL(file);
+            } catch (error) {
+                console.error('圖片處理失敗:', error);
+                // 移除進度提示
+                if (document.body.contains(progressMsg)) {
+                    document.body.removeChild(progressMsg);
                 }
-                
+                alert('圖片處理失敗，請重試');
                 fileInput.value = '';
-            };
-            reader.readAsDataURL(file);
+            }
         }
     });
-    
+
     // 綁定背景選擇和刪除事件
     const bindBackgroundEvents = () => {
         // 綁定選擇事件
@@ -9596,7 +10250,7 @@ function updateMonthCompareChart() {
                     }
                 },
                 tooltip: {
-                    backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-white').trim() || 'rgba(255, 255, 255, 0.95)',
+                    backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-white').trim() || 'var(--bg-white)',
                     titleColor: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#333',
                     bodyColor: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#333',
                     borderColor: borderLight,
@@ -9636,6 +10290,7 @@ function updateMonthCompareChart() {
 
 // 圓餅圖：本月支出結構
 function updatePieChart() {
+    const palette = getThemeChartPalette();
     const canvas = document.getElementById('pieChart');
     if (!canvas) return;
 
@@ -9680,7 +10335,7 @@ function updatePieChart() {
         insightEl.textContent = `本月花最多在「${topLabel}」，佔本月支出約 ${pct}%（NT$${topValue.toLocaleString('zh-TW')}）`;
     }
     
-    const colors = generateColors(data.labels.length);
+    const colors = generateColors(data.labels.length, palette);
     
     if (pieChartInstance) {
         pieChartInstance.destroy();
@@ -9705,7 +10360,7 @@ function updatePieChart() {
                     display: false
                 },
                 tooltip: {
-                    backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-white').trim() || 'rgba(255, 255, 255, 0.95)',
+                    backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-white').trim() || 'var(--bg-white)',
                     titleColor: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#333',
                     bodyColor: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#333',
                     borderColor: getComputedStyle(document.documentElement).getPropertyValue('--border-light').trim() || '#f0f0f0',
@@ -9727,6 +10382,7 @@ function updatePieChart() {
 
 // 長條圖：各分類支出
 function updateBarChart() {
+    const palette = getThemeChartPalette();
     const canvas = document.getElementById('barChart');
     if (!canvas) return;
 
@@ -9775,7 +10431,7 @@ function updateBarChart() {
         values: data.values.slice(0, 10)
     };
     
-    const colors = generateColors(topData.labels.length);
+    const colors = generateColors(topData.labels.length, palette);
     
     if (barChartInstance) {
         barChartInstance.destroy();
@@ -9801,7 +10457,7 @@ function updateBarChart() {
                     display: false
                 },
                 tooltip: {
-                    backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-white').trim() || 'rgba(255, 255, 255, 0.95)',
+                    backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-white').trim() || 'var(--bg-white)',
                     titleColor: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#333',
                     bodyColor: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#333',
                     borderColor: getComputedStyle(document.documentElement).getPropertyValue('--border-light').trim() || '#f0f0f0',
@@ -9816,16 +10472,16 @@ function updateBarChart() {
             scales: {
                 x: {
                     ticks: {
-                        color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#666'
+                        color: palette.textSecondary
                     },
                     grid: {
-                        color: getComputedStyle(document.documentElement).getPropertyValue('--border-light').trim() || '#f0f0f0'
+                        color: palette.border
                     }
                 },
                 y: {
                     beginAtZero: true,
                     ticks: {
-                        color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#666',
+                        color: palette.textSecondary,
                         callback: function(value) {
                             return 'NT$' + value.toLocaleString('zh-TW');
                         }
@@ -9841,6 +10497,7 @@ function updateBarChart() {
 
 // 折線圖：每月總支出趨勢
 function updateLineChart() {
+    const palette = getThemeChartPalette();
     const canvas = document.getElementById('lineChart');
     if (!canvas) return;
 
@@ -9910,7 +10567,7 @@ function updateLineChart() {
             datasets: [{
                 label: '總支出',
                 data: values,
-                borderColor: getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#ff69b4',
+                borderColor: palette.primary,
                 backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--color-primary-rgba-10').trim() || 'rgba(255, 105, 180, 0.1)',
                 borderWidth: 2,
                 fill: true,
@@ -9988,8 +10645,8 @@ function getChartData(records, dimension) {
     };
 }
 
-// 生成顏色
-function generateColors(count) {
+// 生成顏色（會依主題色或自訂顏色）
+function generateColors(count, palette) {
     // 檢查是否有自訂圖表顏色
     const customTheme = getCustomTheme();
     let baseColors = [];
@@ -10015,10 +10672,10 @@ function generateColors(count) {
     } else {
         // 根據當前主題生成顏色
         const root = document.documentElement;
-        const primaryColor = getComputedStyle(root).getPropertyValue('--color-primary').trim();
-        const primaryLight = getComputedStyle(root).getPropertyValue('--color-primary-light').trim();
-        const primaryLighter = getComputedStyle(root).getPropertyValue('--color-primary-lighter').trim();
-        const primaryDark = getComputedStyle(root).getPropertyValue('--color-primary-dark').trim();
+        const primaryColor = palette?.primary || getComputedStyle(root).getPropertyValue('--color-primary').trim();
+        const primaryLight = palette?.primaryLight || getComputedStyle(root).getPropertyValue('--color-primary-light').trim();
+        const primaryLighter = palette?.primaryLighter || getComputedStyle(root).getPropertyValue('--color-primary-lighter').trim();
+        const primaryDark = palette?.primaryDark || getComputedStyle(root).getPropertyValue('--color-primary-dark').trim();
         
         // 將 hex 顏色轉換為 RGB
         function hexToRgb(hex) {
@@ -10788,7 +11445,6 @@ function showDailyDetail(categoryName, day, year, month) {
     // 創建詳細記錄模態框
     const detailModal = document.createElement('div');
     detailModal.className = 'daily-detail-modal';
-    detailModal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10006; display: flex; align-items: center; justify-content: center; padding: 20px;';
 
     let recordsTitleText = `記錄明細 (${dayRecords.length}筆)`;
     let recordsHtml = '';
@@ -10810,7 +11466,7 @@ function showDailyDetail(categoryName, day, year, month) {
 
         recordsTitleText = '卡費明細';
         recordsHtml = `
-            <button class="summary-item summary-item--cta" type="button" data-category="卡費" style="width: 100%;">
+            <button class="summary-item summary-item--cta" type="button" data-category="卡費">
                 <div class="summary-label">下月預約扣款</div>
                 <div class="summary-value highlight">NT$${nextMonthTotal.toLocaleString('zh-TW')}</div>
                 <div class="summary-cta-text">共 ${nextMonthBills.length} 筆 · 點擊查看</div>
@@ -10840,37 +11496,35 @@ function showDailyDetail(categoryName, day, year, month) {
     }
     
     detailModal.innerHTML = `
-        <div style="background: linear-gradient(135deg, #ffffff 0%, #fffafc 100%); border-radius: 24px; padding: 28px; max-width: 500px; width: 100%; max-height: 80vh; overflow-y: auto; box-shadow: 0 12px 48px rgba(255, 105, 180, 0.25), 0 4px 16px rgba(0, 0, 0, 0.15); border: 1px solid rgba(255, 182, 217, 0.2); animation: slideIn 0.3s ease-out;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                <h2 style="margin: 0; font-size: 22px; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 28px;">${categoryIcon}</span>
+        <div class="daily-detail-modal__panel">
+            <div class="daily-detail-modal__header">
+                <h2 class="daily-detail-modal__title">
+                    <span class="daily-detail-modal__icon">${categoryIcon}</span>
                     <span>${year}年${month}月${day}日</span>
                 </h2>
-                <button class="daily-detail-close-btn" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: all 0.2s;">×</button>
+                <button class="daily-detail-close-btn" type="button" aria-label="close">×</button>
             </div>
             
-            <div style="margin-bottom: 20px; padding: 16px; background: linear-gradient(135deg, rgba(255, 182, 217, 0.1) 0%, rgba(255, 158, 199, 0.05) 100%); border-radius: 12px; border: 1px solid rgba(255, 182, 217, 0.2);">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">分類</div>
-                        <div style="font-size: 16px; font-weight: 600; color: var(--text-primary);">${categoryName}</div>
-                    </div>
-                    <div style="text-align: right;">
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">當日總計</div>
-                        <div style="font-size: 24px; font-weight: 600; color: var(--color-error);">NT$${dayTotal.toLocaleString('zh-TW')}</div>
-                    </div>
+            <div class="daily-detail-summary-card">
+                <div>
+                    <div class="daily-detail-summary-label">分類</div>
+                    <div class="daily-detail-summary-value">${categoryName}</div>
+                </div>
+                <div class="daily-detail-summary-value-wrap">
+                    <div class="daily-detail-summary-label">當日總計</div>
+                    <div class="daily-detail-summary-total">NT$${dayTotal.toLocaleString('zh-TW')}</div>
                 </div>
             </div>
             
-            <div style="margin-bottom: 8px; font-size: 14px; font-weight: 600; color: var(--text-primary);">${recordsTitleText}</div>
-            <div style="max-height: 400px; overflow-y: auto; margin-bottom: 16px;">
+            <div class="daily-detail-records-header">${recordsTitleText}</div>
+            <div class="daily-detail-records-list">
                 ${recordsHtml}
             </div>
             
             <!-- 快速記帳按鈕 -->
-            <button class="daily-detail-quick-add-btn" style="width: 100%; padding: 14px 20px; background: var(--bg-gradient); color: var(--text-white); border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: var(--shadow-primary-lg); display: flex; align-items: center; justify-content: center; gap: 8px; position: relative; overflow: hidden;">
-                <span style="font-size: 20px; position: relative; z-index: 1;">➕</span>
-                <span style="position: relative; z-index: 1;">快速記帳</span>
+            <button class="daily-detail-quick-add-btn" type="button">
+                <span class="daily-detail-quick-add-btn__icon">➕</span>
+                <span>快速記帳</span>
             </button>
         </div>
     `;
@@ -10895,22 +11549,6 @@ function showDailyDetail(categoryName, day, year, month) {
     // 快速記帳按鈕事件和樣式
     const quickAddBtn = detailModal.querySelector('.daily-detail-quick-add-btn');
     if (quickAddBtn) {
-        // 添加懸停效果
-        quickAddBtn.addEventListener('mouseenter', () => {
-            quickAddBtn.style.transform = 'translateY(-2px)';
-            quickAddBtn.style.boxShadow = '0 6px 20px rgba(255, 105, 180, 0.4)';
-        });
-        quickAddBtn.addEventListener('mouseleave', () => {
-            quickAddBtn.style.transform = 'translateY(0)';
-            quickAddBtn.style.boxShadow = 'var(--shadow-primary-lg)';
-        });
-        quickAddBtn.addEventListener('mousedown', () => {
-            quickAddBtn.style.transform = 'scale(0.98)';
-        });
-        quickAddBtn.addEventListener('mouseup', () => {
-            quickAddBtn.style.transform = 'translateY(-2px)';
-        });
-        
         quickAddBtn.addEventListener('click', () => {
             // 顯示快速記帳輸入框
             const amountInput = prompt(
@@ -11932,8 +12570,7 @@ function renderCategoryManageList() {
                     <span style="font-size: 10px;">${typeIcon}</span>
                 </span>
                 <div class="category-manage-item-actions">
-                    <button class="category-icon-edit-btn" data-category="${category.name}" title="編輯圖標">🖼️</button>
-                    <label class="category-manage-toggle ${isEnabled ? 'active' : ''}" data-category="${category.name}">
+                                        <label class="category-manage-toggle ${isEnabled ? 'active' : ''}" data-category="${category.name}">
                         <input type="checkbox" ${isEnabled ? 'checked' : ''} style="display: none;">
                         <span class="toggle-slider"></span>
                     </label>
@@ -11990,15 +12627,7 @@ function renderCategoryManageList() {
         }
     });
     
-    // 綁定圖標編輯按鈕
-    categoryManageList.querySelectorAll('.category-icon-edit-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const categoryName = btn.dataset.category;
-            showCategoryIconEditor(categoryName);
-        });
-    });
-}
+    }
 
 // 注意：壓縮圖片和安全保存函數已移至 js/storage.js 模組
 
@@ -12058,21 +12687,7 @@ function showAddCategoryDialog(type = 'expense') {
                     <input type="text" id="categoryIconInput" class="category-modal-input" placeholder="例如：🍔 🚇 💰" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 12px; font-size: 20px; text-align: center; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#ffb6d9'" onblur="this.style.borderColor='#e0e0e0'">
                 </div>
                 
-                <!-- 或上傳圖片 -->
-                <div style="text-align: center; margin-bottom: 8px; color: #999; font-size: 13px; font-weight: 500;">
-                    - 或 -
-                </div>
-                
-                <div style="display: flex; gap: 8px;">
-                    <button type="button" id="uploadCustomIconBtn" style="flex: 1; padding: 12px; border: 2px dashed #ffb6d9; border-radius: 12px; background: #fff5f9; color: #ff69b4; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#ffe6f0'" onmouseout="this.style.background='#fff5f9'">
-                        📷 上傳圖片
-                    </button>
-                    <button type="button" id="resetCustomIconBtn" style="padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 12px; background: #ffffff; color: #666; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='#ffffff'">
-                        🔄 重置
-                    </button>
-                </div>
-                <input type="file" id="customIconFileInput" accept="image/*" style="display: none;">
-            </div>
+                            </div>
             
             <div class="category-modal-actions" style="display: flex; gap: 12px;">
                 <button class="category-modal-btn secondary" id="cancelCategoryBtn" style="flex: 1; padding: 14px; border: 2px solid #e0e0e0; border-radius: 12px; background: #ffffff; color: #666; font-size: 16px; font-weight: 500; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='#ffffff'">
@@ -12088,7 +12703,6 @@ function showAddCategoryDialog(type = 'expense') {
     document.body.appendChild(modal);
     
     let selectedType = type;
-    let selectedIconImage = null; // 儲存上傳的圖片
     
     // 常用圖標列表
     const commonIcons = {
@@ -12113,9 +12727,6 @@ function showAddCategoryDialog(type = 'expense') {
     // 圖標預覽
     const iconInput = modal.querySelector('#categoryIconInput');
     const iconPreview = modal.querySelector('#iconPreview');
-    const uploadBtn = modal.querySelector('#uploadCustomIconBtn');
-    const resetBtn = modal.querySelector('#resetCustomIconBtn');
-    const fileInput = modal.querySelector('#customIconFileInput');
     const quickIconGrid = modal.querySelector('#quickIconGrid');
     
     // 渲染快速選擇圖標網格
@@ -12140,7 +12751,6 @@ function showAddCategoryDialog(type = 'expense') {
                     const icon = btn.dataset.icon;
                     iconInput.value = icon;
                     iconPreview.textContent = icon;
-                    selectedIconImage = null;
                 });
             });
             
@@ -12179,120 +12789,14 @@ function showAddCategoryDialog(type = 'expense') {
         const icon = firstGrapheme(e.target.value);
         e.target.value = icon;
         if (icon) {
-            selectedIconImage = null; // 清除圖片
             iconPreview.innerHTML = `<span style="font-size: 40px;">${icon}</span>`;
         } else {
             iconPreview.innerHTML = '<span style="font-size: 40px;">📦</span>';
         }
     });
     
-    if (uploadBtn && fileInput) {
-        const openPicker = () => {
-            console.log('點擊上傳圖片按鈕');
-            fileInput.value = '';
-            fileInput.click();
-        };
-
-        uploadBtn.addEventListener('click', openPicker);
-        uploadBtn.addEventListener('touchend', openPicker, { passive: true });
         
-        fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                // 檢查文件大小（限制為 500KB）
-                const maxSize = 500 * 1024; // 500KB
-                if (file.size > maxSize) {
-                    alert('圖片太大！請選擇小於 500KB 的圖片，或使用圖片壓縮工具。');
-                    fileInput.value = '';
-                    return;
-                }
-                
-                console.log('選擇了圖片檔案:', file.name, file.size, 'bytes');
-                
-                // 壓縮圖片
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        // 創建 canvas 來壓縮圖片
-                        const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
-                        
-                        // 設置最大尺寸（針對大量圖示優化：更小的尺寸）
-                        const maxWidth = 150;
-                        const maxHeight = 150;
-                        let width = img.width;
-                        let height = img.height;
-                        
-                        // 計算縮放比例
-                        if (width > maxWidth || height > maxHeight) {
-                            if (width > height) {
-                                height = (height * maxWidth) / width;
-                                width = maxWidth;
-                            } else {
-                                width = (width * maxHeight) / height;
-                                height = maxHeight;
-                            }
-                        }
-                        
-                        canvas.width = width;
-                        canvas.height = height;
-                        
-                        // 繪製壓縮後的圖片
-                        ctx.drawImage(img, 0, 0, width, height);
-                        
-                        // 轉換為 base64（使用更低的質量以減少大小，針對大量圖示優化）
-                        selectedIconImage = canvas.toDataURL('image/jpeg', 0.6);
-                        
-                        const originalSize = event.target.result.length;
-                        const compressedSize = selectedIconImage.length;
-                        const compressionRatio = ((1 - compressedSize / originalSize) * 100).toFixed(1);
-                        
-                        console.log('✓ 圖片已壓縮');
-                        console.log('  原始大小:', originalSize, 'chars');
-                        console.log('  壓縮後:', compressedSize, 'chars');
-                        console.log('  壓縮率:', compressionRatio + '%');
-                        
-                        // 檢查壓縮後是否仍然太大（超過 100KB，針對大量圖示優化）
-                        if (compressedSize > 100 * 1024) {
-                            alert('圖片壓縮後仍然太大（超過 100KB），請選擇更小的圖片。\n\n建議：使用小於 500KB 的原始圖片。');
-                            fileInput.value = '';
-                            selectedIconImage = null;
-                            return;
-                        }
-                        
-                    iconPreview.innerHTML = `<img src="${selectedIconImage}" style="width: 100%; height: 100%; object-fit: contain; border-radius: 8px;">`;
-                    // 清空 emoji 輸入框
-                    iconInput.value = '';
-                    console.log('✓ 預覽已更新');
-                    };
-                    img.onerror = () => {
-                        console.error('圖片載入失敗');
-                        alert('圖片格式不支援，請選擇 JPG、PNG 或 GIF 格式的圖片。');
-                        fileInput.value = '';
-                    };
-                    img.src = event.target.result;
-                };
-                reader.onerror = (error) => {
-                    console.error('圖片讀取失敗:', error);
-                    alert('圖片讀取失敗，請重試');
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-    } else {
-        console.error('找不到上傳按鈕或文件輸入框');
-    }
-    
-    // 重置圖標
-    if (resetBtn) {
-        resetBtn.addEventListener('click', () => {
-            selectedIconImage = null;
-            iconInput.value = '';
-            iconPreview.innerHTML = '<span style="font-size: 40px;">📦</span>';
-        });
-    }
-    
+        
     // 關閉按鈕
     const closeModal = () => {
         if (document.body.contains(modal)) {
@@ -12331,12 +12835,11 @@ function showAddCategoryDialog(type = 'expense') {
         // 創建新分類
         const newCategory = {
             name: name,
-            icon: selectedIconImage ? '🖼️' : icon, // 如果有圖片，使用圖片 emoji 作為預設
+            icon: icon,
             type: selectedType
         };
         
         console.log('📝 創建新分類:', newCategory);
-        console.log('📝 是否有圖片:', selectedIconImage ? 'YES' : 'NO');
         
         // 1. 保存到localStorage
         const savedCategories = JSON.parse(localStorage.getItem('customCategories') || '[]');
@@ -12345,72 +12848,25 @@ function showAddCategoryDialog(type = 'expense') {
         
         console.log('✓ 保存新分類到 localStorage:', newCategory);
         
-        // 2. 如果有上傳圖片，保存自定義圖標（圖片已經在上傳時壓縮過了）
-        if (selectedIconImage) {
-            try {
-            console.log('準備保存自定義圖標，圖片大小:', selectedIconImage.length, 'chars');
-                
-                // 檢查圖片大小（如果超過 200KB，再次壓縮）
-                if (selectedIconImage.length > 200 * 1024) {
-                    console.log('圖片仍然太大，進行二次壓縮...');
-                    selectedIconImage = await compressImage(selectedIconImage, 150, 150, 0.6);
-                    console.log('✓ 二次壓縮後大小:', selectedIconImage.length, 'chars');
-                }
-                
-            const customIcons = JSON.parse(localStorage.getItem('categoryCustomIcons') || '{}');
-            customIcons[name] = {
-                type: 'image',
-                value: selectedIconImage
-            };
-                
-                // 使用安全保存函數
-                const saved = safeSetItem('categoryCustomIcons', customIcons);
-                if (!saved) {
-                    // 如果保存失敗，回滾分類保存
-                    savedCategories.pop();
-                    localStorage.setItem('customCategories', JSON.stringify(savedCategories));
-                    alert('儲存空間不足！\n\n請嘗試：\n1. 刪除一些舊的自定義分類圖片\n2. 使用更小的圖片（建議小於 100KB）\n3. 清除瀏覽器緩存');
-                    return;
-                }
-                
-            console.log('✓ 保存自定義圖標到 localStorage');
-            console.log('✓ 圖標類型:', customIcons[name].type);
-            console.log('✓ 圖標資料長度:', customIcons[name].value.length);
-            } catch (error) {
-                console.error('保存圖片失敗:', error);
-                if (error.name === 'QuotaExceededError') {
-                    alert('儲存空間不足！\n\n請嘗試：\n1. 刪除一些舊的自定義分類圖片\n2. 使用更小的圖片\n3. 清除瀏覽器緩存');
-                } else {
-                    alert('保存圖片失敗：' + error.message);
-                }
-                // 回滾分類保存
-                savedCategories.pop();
-                localStorage.setItem('customCategories', JSON.stringify(savedCategories));
-                return;
-            }
-        } else {
-            console.log('未選擇圖片，使用 Emoji:', icon);
-        }
-        
-        // 3. 添加到分類列表（記憶體中）
+        // 2. 添加到分類列表（記憶體中）
         allCategories.push(newCategory);
         console.log('✓ 添加到 allCategories，新總數:', allCategories.length);
         
-        // 4. 設置新分類為啟用狀態
+        // 3. 設置新分類為啟用狀態
         const enabledState = getCategoryEnabledState();
         enabledState[name] = true;
         saveCategoryEnabledState(enabledState);
         console.log('✓ 設置新分類為啟用狀態');
         
-        // 5. 關閉對話框
+        // 4. 關閉對話框
         closeModal();
         
-        // 6. 重新渲染分類管理列表
+        // 5. 重新渲染分類管理列表
         if (typeof renderCategoryManageList === 'function') {
             renderCategoryManageList();
         }
         
-        // 7. 立即重新初始化分類網格（確保新分類立即顯示）
+        // 6. 立即重新初始化分類網格（確保新分類立即顯示）
         const pageInput = document.getElementById('pageInput');
         if (pageInput && pageInput.style.display !== 'none') {
             console.log('✓ 記帳輸入頁面可見，立即更新分類網格');
@@ -12433,12 +12889,11 @@ function showAddCategoryDialog(type = 'expense') {
         }
         
         // 顯示成功提示
-        const iconType = selectedIconImage ? '圖片' : 'Emoji';
         const successMsg = document.createElement('div');
         successMsg.innerHTML = `
             <div style="font-size: 16px; font-weight: 600; margin-bottom: 4px;">✓ 分類新增成功！</div>
             <div style="font-size: 13px; opacity: 0.9;">
-                ${name} (${selectedType === 'expense' ? '支出' : selectedType === 'income' ? '收入' : '轉帳'}) - ${iconType}圖標
+                ${name} (${selectedType === 'expense' ? '支出' : selectedType === 'income' ? '收入' : '轉帳'}) - Emoji圖標
             </div>
         `;
         successMsg.style.cssText = 'position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #4caf50 0%, #45a049 100%); color: white; padding: 16px 24px; border-radius: 12px; z-index: 10006; text-align: center; box-shadow: 0 4px 16px rgba(76, 175, 80, 0.3);';
@@ -12456,218 +12911,120 @@ function showAddCategoryDialog(type = 'expense') {
     }, 100);
 }
 
-// 顯示分類圖標編輯器
-function showCategoryIconEditor(categoryName) {
-    const customIcons = JSON.parse(localStorage.getItem('categoryCustomIcons') || '{}');
-    const currentIcon = customIcons[categoryName];
-    
-    // 創建編輯對話框
-    const modal = document.createElement('div');
-    modal.className = 'category-icon-modal';
-    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10001; display: flex; align-items: center; justify-content: center;';
-    
-    modal.innerHTML = `
-        <div class="category-icon-modal-content" style="background: white; border-radius: 16px; padding: 24px; max-width: 400px; width: 90%; max-height: 80vh; overflow-y: auto;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="margin: 0; font-size: 18px; font-weight: 600;">編輯「${categoryName}」圖標</h3>
-                <button class="modal-close-btn" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">✕</button>
-            </div>
-            
-            <div style="margin-bottom: 20px;">
-                <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px; color: #333;">當前圖標</div>
-                <div id="currentIconPreview" style="width: 80px; height: 80px; border: 2px solid #f0f0f0; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 40px; background: #fafafa;">
-                    ${currentIcon && currentIcon.type === 'image' 
-                        ? `<img src="${currentIcon.value}" style="width: 100%; height: 100%; object-fit: contain; border-radius: 8px;">`
-                        : allCategories.find(c => c.name === categoryName)?.icon || '📦'
-                    }
-                </div>
-            </div>
-            
-            <div style="margin-bottom: 20px;">
-                <button id="uploadIconBtn" style="width: 100%; padding: 12px; border: 2px dashed #ffb6d9; border-radius: 12px; background: #fff5f9; color: #ff69b4; font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: 12px;">
-                    📷 上傳圖片
-                </button>
-                <button id="resetIconBtn" style="width: 100%; padding: 12px; border: 2px solid #f0f0f0; border-radius: 12px; background: #ffffff; color: #666; font-size: 14px; font-weight: 500; cursor: pointer;">
-                    🔄 恢復默認圖標
-                </button>
-            </div>
-            
-            <div style="display: flex; gap: 12px;">
-                <button id="saveIconBtn" style="flex: 1; padding: 12px; border: none; border-radius: 12px; background: linear-gradient(135deg, #ffb6d9 0%, #ff9ec7 100%); color: white; font-size: 14px; font-weight: 600; cursor: pointer;">
-                    儲存
-                </button>
-                <button id="cancelIconBtn" style="flex: 1; padding: 12px; border: 2px solid #f0f0f0; border-radius: 12px; background: #ffffff; color: #666; font-size: 14px; font-weight: 500; cursor: pointer;">
-                    取消
-                </button>
-            </div>
-            
-            <input type="file" id="iconFileInput" accept="image/*" style="display: none;">
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    let selectedImage = null;
-    
-    // 上傳圖片
-    const uploadBtn = modal.querySelector('#uploadIconBtn');
-    const fileInput = modal.querySelector('#iconFileInput');
-    const preview = modal.querySelector('#currentIconPreview');
-    
-    uploadBtn.addEventListener('click', () => {
-        fileInput.value = '';
-        fileInput.click();
-    });
-
-    uploadBtn.addEventListener('touchend', () => {
-        fileInput.value = '';
-        fileInput.click();
-    }, { passive: true });
-    
-    fileInput.addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                try {
-                    // 立即壓縮圖片
-                    const compressedImage = await compressImage(event.target.result);
-                    selectedImage = compressedImage;
-                preview.innerHTML = `<img src="${selectedImage}" style="width: 100%; height: 100%; object-fit: contain; border-radius: 8px;">`;
-                    console.log('✓ 圖片已壓縮，大小:', compressedImage.length, 'chars');
-                } catch (error) {
-                    console.error('壓縮圖片失敗:', error);
-                    alert('處理圖片失敗，請重試。');
-                }
-            };
-            reader.readAsDataURL(file);
-        }
-    });
-    
-    // 恢復默認
-    modal.querySelector('#resetIconBtn').addEventListener('click', () => {
-        selectedImage = null;
-        const defaultIcon = allCategories.find(c => c.name === categoryName)?.icon || '📦';
-        preview.innerHTML = defaultIcon;
-        preview.style.fontSize = '40px';
-    });
-    
-    // 儲存
-    modal.querySelector('#saveIconBtn').addEventListener('click', async () => {
-        const customIcons = JSON.parse(localStorage.getItem('categoryCustomIcons') || '{}');
-        
-        if (selectedImage) {
-            try {
-                console.log('準備保存圖標，圖片大小:', selectedImage.length, 'chars');
-                
-                // 如果圖片仍然太大（超過 100KB），再次壓縮
-                let finalImage = selectedImage;
-                if (selectedImage.length > 100 * 1024) {
-                    console.log('圖片仍然太大，進行二次壓縮...');
-                    finalImage = await compressImage(selectedImage, 120, 120, 0.5);
-                    console.log('✓ 二次壓縮後大小:', finalImage.length, 'chars');
-                }
-                
-            customIcons[categoryName] = {
-                type: 'image',
-                    value: finalImage
-            };
-            } catch (error) {
-                console.error('處理圖片失敗:', error);
-                alert('處理圖片失敗：' + error.message);
-                return;
-            }
-        } else {
-            // 如果選擇恢復默認，刪除自定義圖標
-            delete customIcons[categoryName];
-        }
-        
-        // 使用安全保存函數
-        const saved = safeSetItem('categoryCustomIcons', customIcons);
-        if (!saved) {
-            return; // 錯誤訊息已在 safeSetItem 中顯示
-        }
-        
-        // 重新渲染分類管理列表
-        const activeTypeBtn = document.querySelector('.category-type-btn.active');
-        const currentType = activeTypeBtn ? activeTypeBtn.dataset.type : 'expense';
-        renderCategoryManageList(currentType);
-        
-        // 重新初始化分類網格（如果記帳輸入頁面可見）
-        const pageInput = document.getElementById('pageInput');
-        if (pageInput && pageInput.style.display !== 'none') {
-            const activeTab = document.querySelector('.tab-btn.active');
-            const tabType = activeTab ? activeTab.dataset.tab : 'recommended';
-            const recordType = window.accountingType || 'expense';
-            initCategoryGrid(tabType, recordType);
-        }
-        
-        document.body.removeChild(modal);
-    });
-    
-    // 取消/關閉
-    const closeModal = () => {
-        if (document.body.contains(modal)) {
-            document.body.removeChild(modal);
-        }
-    };
-    
-    modal.querySelector('.modal-close-btn').addEventListener('click', closeModal);
-    modal.querySelector('#cancelIconBtn').addEventListener('click', closeModal);
-    modal.querySelector('.category-icon-modal').addEventListener('click', (e) => {
-        if (e.target === modal) closeModal();
-    });
-}
 
 // 初始化設置頁面
 function initSettingsPage() {
     const settingsList = document.getElementById('settingsList');
     if (!settingsList) return;
-    
-    const settings = [
-        { icon: '📊', title: '年報', action: 'annualReport' },
-        { icon: '🎨', title: '主題', action: 'theme' },
-        { icon: '🔤', title: '字體', action: 'fontSize' },
-        { icon: '📚', title: '教學', action: 'tutorial' },
-        { icon: '🖼️', title: '圖示', action: 'iconManage' },
-        { icon: '🔗', title: 'Sheet 網址', action: 'setGoogleSheetUploadUrl' },
-        { icon: '🔑', title: '雲端備份碼', action: 'setGoogleCloudBackupKey' },
-        { icon: '☁️', title: '雲端備份（完整）', action: 'cloudBackupFull' },
-        { icon: '☁️', title: '雲端還原（完整）', action: 'cloudRestoreFull' },
-        { icon: '☁️', title: '上傳明細', action: 'uploadAllRecordsDetailsToGoogleSheet' },
-        { icon: '☁️', title: '按帳戶備份', action: 'uploadRecordsByAccountToGoogleSheet' },
-        { icon: '🧮', title: '上傳加總', action: 'uploadIncomeExpenseCategorySummaryToGoogleSheet' },
-        { icon: '💾', title: '備份', action: 'backup' },
-        { icon: '📥', title: '還原', action: 'restore' },
-        { icon: '📊', title: '匯出', action: 'export' },
-        { icon: '📂', title: '匯入', action: 'import' },
-        { icon: '🧾', title: '分類加總 CSV', action: 'exportExpenseCategorySummary' },
-        { icon: '🧾', title: '分期', action: 'installmentRules' },
-        { icon: '👨‍💻', title: '關於', action: 'creator' }
+
+    const settingsSections = [
+        {
+            title: '🎨 個人化設定',
+            items: [
+                {
+                    icon: '🎨',
+                    title: '主題',
+                    description: '霓虹波動 / 日系 / 極光等主題',
+                    action: 'theme',
+                    accent: 'linear-gradient(135deg, #ff9a9e, #fecfef)',
+                    iconGradient: 'linear-gradient(135deg, #ff758c, #ff7eb3)'
+                },
+                {
+                    icon: '🔤',
+                    title: '字體',
+                    description: '調整字級與閱讀體驗',
+                    action: 'fontSize',
+                    accent: 'linear-gradient(135deg, #84fab0, #8fd3f4)',
+                    iconGradient: 'linear-gradient(135deg, #96fbc4, #f9f586)'
+                },
+                            ]
+        },
+        {
+            title: '☁️ 雲端同步',
+            items: [
+                { icon: '☁️', title: '雲端備份（完整）', description: '一鍵備份所有資料', action: 'cloudBackupFull', accent: 'linear-gradient(135deg, #43e97b, #38f9d7)', iconGradient: 'linear-gradient(135deg, #43e97b, #38f9d7)' },
+                { icon: '☁️', title: '雲端還原（完整）', description: '從雲端還原備份', action: 'cloudRestoreFull', accent: 'linear-gradient(135deg, #fa709a, #fee140)', iconGradient: 'linear-gradient(135deg, #fa709a, #fee140)' },
+                { icon: '🔗', title: 'Sheet 網址', description: '設定 Google Sheet Web App', action: 'setGoogleSheetUploadUrl', accent: 'linear-gradient(135deg, #5ee7df, #b490ca)', iconGradient: 'linear-gradient(135deg, #5ee7df, #b490ca)' },
+                { icon: '🔑', title: '雲端備份碼', description: '設定雲端還原安全碼', action: 'setGoogleCloudBackupKey', accent: 'linear-gradient(135deg, #4facfe, #00f2fe)', iconGradient: 'linear-gradient(135deg, #4facfe, #00f2fe)' },
+                { icon: '🧾', title: '上傳明細', description: '同步所有記錄明細', action: 'uploadAllRecordsDetailsToGoogleSheet', accent: 'linear-gradient(135deg, #30cfd0, #330867)', iconGradient: 'linear-gradient(135deg, #30cfd0, #330867)' },
+                { icon: '🧮', title: '按帳戶備份', description: '依帳戶上傳資料', action: 'uploadRecordsByAccountToGoogleSheet', accent: 'linear-gradient(135deg, #f6d365, #fda085)', iconGradient: 'linear-gradient(135deg, #f6d365, #fda085)' },
+                { icon: '📊', title: '上傳加總', description: '同步收支分類加總', action: 'uploadIncomeExpenseCategorySummaryToGoogleSheet', accent: 'linear-gradient(135deg, #89f7fe, #66a6ff)', iconGradient: 'linear-gradient(135deg, #89f7fe, #66a6ff)' }
+            ]
+        },
+        {
+            title: '💾 本機備份',
+            items: [
+                { icon: '💾', title: '備份', description: '匯出本機資料檔', action: 'backup', accent: 'linear-gradient(135deg, #fddb92, #d1fdff)', iconGradient: 'linear-gradient(135deg, #fddb92, #d1fdff)' },
+                { icon: '📥', title: '還原', description: '從本機檔案還原', action: 'restore', accent: 'linear-gradient(135deg, #fcb69f, #ffecd2)', iconGradient: 'linear-gradient(135deg, #fcb69f, #ffecd2)' }
+            ]
+        },
+        {
+            title: '📊 分析工具',
+            items: [
+                { icon: '📈', title: '年報', description: '生成年度分析報告', action: 'annualReport', accent: 'linear-gradient(135deg, #a1c4fd, #c2e9fb)', iconGradient: 'linear-gradient(135deg, #a1c4fd, #c2e9fb)' },
+                { icon: '📑', title: '分期', description: '管理分期與長期支出', action: 'installmentRules', accent: 'linear-gradient(135deg, #fbc2eb, #a6c1ee)', iconGradient: 'linear-gradient(135deg, #fbc2eb, #a6c1ee)' }
+            ]
+        },
+        {
+            title: '📚 說明與支援',
+            items: [
+                { icon: '👨‍💻', title: '關於', description: '創作者與版本資訊', action: 'creator', accent: 'linear-gradient(135deg, #d299c2, #fef9d7)', iconGradient: 'linear-gradient(135deg, #d299c2, #fef9d7)' }
+            ]
+        }
     ];
-    
-    let html = '';
-    settings.forEach(setting => {
-        html += `
-            <div class="settings-item" data-action="${setting.action}">
-                <span class="settings-item-icon">${setting.icon}</span>
-                <span class="settings-item-text">${setting.title}</span>
-                <span class="settings-item-arrow">›</span>
+
+    const sectionHTML = settingsSections.map(section => {
+        const itemsHtml = section.items.map(item => {
+            const accentStyle = item.accent ? `style="background:${item.accent};"` : '';
+            const iconStyle = item.iconGradient ? `style="background:${item.iconGradient};"` : '';
+            const iconContent = item.image
+                ? `<img src="${item.image}" alt="${item.title}">`
+                : `<span>${item.icon || ''}</span>`;
+            
+            // 為刪除功能添加特殊樣式
+            const isDeleteAction = item.action === 'deleteAllData';
+            const deleteClass = isDeleteAction ? ' delete-warning' : '';
+            const deleteWarning = isDeleteAction ? '<span class="settings-item-warning">⚠️ 此操作無法復原</span>' : '';
+            
+            return `
+                <div class="settings-item${deleteClass}" data-action="${item.action}">
+                    <div class="settings-item-accent" ${accentStyle}></div>
+                    <div class="settings-item-icon" ${iconStyle} ${isDeleteAction ? 'style="background: linear-gradient(135deg, #dc3545, #ff6b6b); border: 2px solid #dc3545; animation: pulse 2s infinite;"' : ''}>
+                        ${iconContent}
+                    </div>
+                    <div class="settings-item-text-group">
+                        <span class="settings-item-text" ${isDeleteAction ? 'style="color: #dc3545;"' : ''}>${item.title}</span>
+                        ${item.description ? `<span class="settings-item-subtext">${item.description}</span>` : ''}
+                        ${deleteWarning}
+                    </div>
+                    <span class="settings-item-arrow">›</span>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="settings-section">
+                ${section.title ? `<div class="settings-section-title">${section.title}</div>` : ''}
+                <div class="settings-section-items">
+                    ${itemsHtml}
+                </div>
             </div>
         `;
-    });
-    
-    settingsList.innerHTML = html;
-    
+    }).join('');
+
+    settingsList.innerHTML = sectionHTML;
+
     // 綁定點擊事件
     document.querySelectorAll('.settings-item').forEach(item => {
         item.addEventListener('click', () => {
             const action = item.dataset.action;
-            if (action === 'backup') {
-                // 備份資料
+            if (action === 'uploadAllData') {
+                uploadAllDataToGoogleSheet();
+            } else if (action === 'deleteAllData') {
+                deleteAllDataFromGoogleSheet();
+            } else if (action === 'backup') {
                 backupData();
             } else if (action === 'restore') {
-                // 還原資料
                 restoreData();
             } else if (action === 'setGoogleSheetUploadUrl') {
                 setGoogleSheetUploadUrl();
@@ -12683,37 +13040,28 @@ function initSettingsPage() {
                 uploadRecordsByAccountToGoogleSheet();
             } else if (action === 'uploadIncomeExpenseCategorySummaryToGoogleSheet') {
                 uploadIncomeExpenseCategorySummaryToGoogleSheet();
-            } else if (action === 'exportExpenseCategorySummary') {
-                exportExpenseCategorySummaryCsv();
-            } else if (action === 'export') {
-                // 匯出資料
-                exportData();
-            } else if (action === 'import') {
-                // 匯入檔案
-                importData();
-            } else if (action === 'tutorial') {
-                // 操作教學
-                showTutorial();
             } else if (action === 'creator') {
-                // 創作者信息
                 showCreatorInfo();
             } else if (action === 'theme') {
-                // 主題顏色
                 showThemeSelector();
             } else if (action === 'fontSize') {
-                // 字體大小
                 showFontSizeSelector();
-            } else if (action === 'iconManage') {
-                // 圖示管理
-                showIconManageDialog();
-            } else if (action === 'annualReport') {
-                // 年度報告
+                        } else if (action === 'annualReport') {
                 showAnnualReport();
             } else if (action === 'installmentRules') {
                 showInstallmentManagementPage();
             }
         });
     });
+}
+
+// 顯示想買的東西/存錢目標頁面
+function showWishlistSavingsPage() {
+    document.getElementById('pageSettings').style.display = 'none';
+    document.getElementById('pageWishlistSavings').style.display = 'block';
+    
+    // 重新渲染列表
+    switchTab(wishlistSavingsManager.currentTab || 'wishlist');
 }
 
 function getInstallmentRules() {
@@ -13457,7 +13805,8 @@ function backupData() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+        const now = new Date();
+        const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
         a.download = `記帳本完整備份_${dateStr}.json`;
         document.body.appendChild(a);
         a.click();
@@ -13473,453 +13822,6 @@ function backupData() {
 
 // 注意：compressAllIcons 和 getStorageInfo 函數已移至 js/storage.js 模組
 
-// 顯示圖示管理對話框
-function showIconManageDialog() {
-    const modal = document.createElement('div');
-    modal.className = 'icon-manage-modal';
-    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10010; display: flex; align-items: center; justify-content: center; padding: 20px;';
-    
-    const info = getStorageInfo();
-    
-    modal.innerHTML = `
-        <div style="background: white; border-radius: 16px; padding: 24px; max-width: 500px; width: 100%; max-height: 90vh; overflow-y: auto;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="margin: 0; font-size: 20px; font-weight: 600;">🖼️ 圖示管理</h2>
-                <button class="modal-close-btn" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">×</button>
-            </div>
-            
-            <div style="background: #f5f5f5; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
-                <div style="font-size: 14px; color: #666; margin-bottom: 12px;">存儲空間使用情況</div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="color: #333;">圖示總數：</span>
-                    <span style="font-weight: 600; color: #2196F3;">${info.iconCount} 個</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="color: #333;">圖片圖示：</span>
-                    <span style="font-weight: 600; color: #4CAF50;">${info.imageCount} 個</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="color: #333;">圖示總大小：</span>
-                    <span style="font-weight: 600; color: ${info.sizeInMB > 2 ? '#f44336' : info.sizeInMB > 1 ? '#FF9800' : '#4CAF50'};">${info.sizeInMB.toFixed(2)} MB</span>
-                </div>
-                <div style="display: flex; justify-content: space-between;">
-                    <span style="color: #333;">總存儲使用：</span>
-                    <span style="font-weight: 600; color: ${info.totalStorageMB > 4 ? '#f44336' : info.totalStorageMB > 3 ? '#FF9800' : '#4CAF50'};">${info.totalStorageMB.toFixed(2)} MB / ~5 MB</span>
-                </div>
-            </div>
-            
-            <div style="margin-bottom: 20px;">
-                <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px; color: #333;">自定義圖示列表</div>
-                <div style="font-size: 12px; color: #999; margin-bottom: 12px;">
-                    📱 手機長按刪除 | 🖱️ 滑鼠右鍵刪除
-                </div>
-                <div id="customIconsList" style="max-height: 300px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 12px; padding: 8px;">
-                    <!-- 圖示列表將由 JavaScript 動態生成 -->
-                </div>
-            </div>
-            
-            <div style="display: flex; flex-direction: column; gap: 12px;">
-                <button id="compressAllIconsBtn" style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%); color: white; border: none; padding: 14px 20px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform 0.2s;">
-                    🗜️ 批量壓縮所有圖示
-                </button>
-                <button id="cleanUnusedIconsBtn" style="background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); color: white; border: none; padding: 14px 20px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform 0.2s;">
-                    🗑️ 清理未使用的圖示
-                </button>
-                <button id="deleteAllIconsBtn" style="background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%); color: white; border: none; padding: 14px 20px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform 0.2s;">
-                    ⚠️ 刪除所有自定義圖示
-                </button>
-            </div>
-            
-            <div style="margin-top: 20px; padding: 12px; background: #fff3cd; border-radius: 8px; font-size: 13px; color: #856404;">
-                💡 提示：批量壓縮可以大幅減少存儲空間，建議定期執行。壓縮後圖示品質可能略有下降，但不會影響使用。
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    // 渲染自定義圖示列表
-    const renderIconsList = () => {
-        const customIcons = JSON.parse(localStorage.getItem('categoryCustomIcons') || '{}');
-        const iconsList = modal.querySelector('#customIconsList');
-        const iconNames = Object.keys(customIcons);
-        
-        if (iconNames.length === 0) {
-            iconsList.innerHTML = `
-                <div style="text-align: center; padding: 40px 20px; color: #999; font-size: 14px;">
-                    <div style="font-size: 48px; margin-bottom: 12px;">📭</div>
-                    <div>目前沒有自定義圖示</div>
-                </div>
-            `;
-            return;
-        }
-        
-        iconsList.innerHTML = iconNames.map(categoryName => {
-            const iconData = customIcons[categoryName];
-            const isImage = iconData && iconData.type === 'image';
-            const iconDisplay = isImage 
-                ? `<img src="${iconData.value}" style="width: 40px; height: 40px; object-fit: contain; border-radius: 8px; border: 1px solid #e0e0e0;">`
-                : `<div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 24px; background: #f5f5f5; border-radius: 8px;">${iconData && iconData.value ? iconData.value : '📦'}</div>`;
-            
-            const iconSize = isImage && iconData.value 
-                ? `(${(iconData.value.length / 1024).toFixed(1)} KB)`
-                : '';
-            
-            return `
-                <div class="icon-list-item" data-category="${categoryName}" style="display: flex; align-items: center; gap: 12px; padding: 12px; border-bottom: 1px solid #f0f0f0; transition: background 0.2s; cursor: pointer; user-select: none;" title="長按或右鍵刪除">
-                    <div style="flex-shrink: 0;">
-                        ${iconDisplay}
-                    </div>
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 15px; font-weight: 500; color: #333; margin-bottom: 4px; word-break: break-word;">${categoryName}</div>
-                        <div style="font-size: 12px; color: #999;">${isImage ? '圖片圖示' : 'Emoji 圖示'} ${iconSize}</div>
-                    </div>
-                    <div style="flex-shrink: 0; font-size: 12px; color: #bbb; display: flex; align-items: center; gap: 4px;">
-                        <span style="display: none;" class="mobile-hint">📱 長按</span>
-                        <span style="display: none;" class="desktop-hint">🖱️ 右鍵</span>
-                    </div>
-                </div>
-            `;
-        }).join('');
-        
-        // 檢測設備類型並顯示對應提示
-        const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-        iconsList.querySelectorAll('.icon-list-item').forEach(item => {
-            const mobileHint = item.querySelector('.mobile-hint');
-            const desktopHint = item.querySelector('.desktop-hint');
-            
-            if (isMobile && mobileHint) {
-                mobileHint.style.display = 'inline';
-            } else if (!isMobile && desktopHint) {
-                desktopHint.style.display = 'inline';
-            }
-        });
-        
-        // 綁定長按和右鍵刪除事件
-        iconsList.querySelectorAll('.icon-list-item').forEach(item => {
-            const categoryName = item.getAttribute('data-category');
-            let longPressTimer = null;
-            
-            // 刪除函數
-            const deleteIcon = () => {
-                if (confirm(`確定要刪除「${categoryName}」的自定義圖示嗎？\n\n此操作無法復原。`)) {
-                    const customIcons = JSON.parse(localStorage.getItem('categoryCustomIcons') || '{}');
-                    if (customIcons[categoryName]) {
-                        delete customIcons[categoryName];
-                        safeSetItem('categoryCustomIcons', customIcons);
-                        
-                        // 重新渲染列表
-                        renderIconsList();
-                        
-                        // 更新統計信息
-                        const newInfo = getStorageInfo();
-                        const infoDiv = modal.querySelector('div[style*="background: #f5f5f5"]');
-                        infoDiv.innerHTML = `
-                            <div style="font-size: 14px; color: #666; margin-bottom: 12px;">存儲空間使用情況</div>
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                                <span style="color: #333;">圖示總數：</span>
-                                <span style="font-weight: 600; color: #2196F3;">${newInfo.iconCount} 個</span>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                                <span style="color: #333;">圖片圖示：</span>
-                                <span style="font-weight: 600; color: #4CAF50;">${newInfo.imageCount} 個</span>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                                <span style="color: #333;">圖示總大小：</span>
-                                <span style="font-weight: 600; color: ${newInfo.sizeInMB > 2 ? '#f44336' : newInfo.sizeInMB > 1 ? '#FF9800' : '#4CAF50'};">${newInfo.sizeInMB.toFixed(2)} MB</span>
-                            </div>
-                            <div style="display: flex; justify-content: space-between;">
-                                <span style="color: #333;">總存儲使用：</span>
-                                <span style="font-weight: 600; color: ${newInfo.totalStorageMB > 4 ? '#f44336' : newInfo.totalStorageMB > 3 ? '#FF9800' : '#4CAF50'};">${newInfo.totalStorageMB.toFixed(2)} MB / ~5 MB</span>
-                            </div>
-                        `;
-                        
-                        // 更新分類顯示
-                        if (typeof initCategoryGrid === 'function') {
-                            initCategoryGrid();
-                        }
-                        
-                        alert('已刪除「' + categoryName + '」的自定義圖示。');
-                    }
-                }
-            };
-            
-            // 手機長按刪除
-            item.addEventListener('touchstart', (e) => {
-                longPressTimer = setTimeout(() => {
-                    // 震動反饋（如果設備支持）
-                    if (navigator.vibrate) {
-                        navigator.vibrate(50);
-                    }
-                    // 視覺反饋
-                    item.style.background = '#ffebee';
-                    deleteIcon();
-                    // 重置背景
-                    setTimeout(() => {
-                        if (item.parentElement) {
-                            item.style.background = '';
-                        }
-                    }, 200);
-                }, 500); // 500ms 長按觸發
-            });
-            
-            item.addEventListener('touchend', () => {
-                if (longPressTimer) {
-                    clearTimeout(longPressTimer);
-                    longPressTimer = null;
-                }
-            });
-            
-            item.addEventListener('touchmove', () => {
-                if (longPressTimer) {
-                    clearTimeout(longPressTimer);
-                    longPressTimer = null;
-                }
-            });
-            
-            // 滑鼠右鍵刪除
-            item.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-                item.style.background = '#ffebee';
-                deleteIcon();
-                // 重置背景
-                setTimeout(() => {
-                    if (item.parentElement) {
-                        item.style.background = '';
-                    }
-                }, 200);
-            });
-            
-            // 懸停效果
-            item.addEventListener('mouseenter', () => {
-                item.style.background = '#f5f5f5';
-            });
-            
-            item.addEventListener('mouseleave', () => {
-                item.style.background = '';
-            });
-        });
-    };
-    
-    // 初始渲染列表
-    renderIconsList();
-    
-    // 關閉按鈕
-    modal.querySelector('.modal-close-btn').addEventListener('click', () => {
-        document.body.removeChild(modal);
-    });
-    
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            document.body.removeChild(modal);
-        }
-    });
-    
-    // 批量壓縮所有圖示
-    modal.querySelector('#compressAllIconsBtn').addEventListener('click', async () => {
-        const btn = modal.querySelector('#compressAllIconsBtn');
-        const originalText = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = '⏳ 壓縮中...';
-        
-        try {
-            const customIcons = JSON.parse(localStorage.getItem('categoryCustomIcons') || '{}');
-            const iconNames = Object.keys(customIcons);
-            const imageIcons = iconNames.filter(name => 
-                customIcons[name] && customIcons[name].type === 'image' && customIcons[name].value
-            );
-            
-            if (imageIcons.length === 0) {
-                alert('沒有需要壓縮的圖片圖示。');
-                btn.disabled = false;
-                btn.innerHTML = originalText;
-                return;
-            }
-            
-            if (!confirm(`將壓縮 ${imageIcons.length} 個圖片圖示，這可能需要一些時間。確定繼續嗎？`)) {
-                btn.disabled = false;
-                btn.innerHTML = originalText;
-                return;
-            }
-            
-            const compressedIcons = { ...customIcons };
-            let successCount = 0;
-            let failCount = 0;
-            let originalTotalSize = 0;
-            let compressedTotalSize = 0;
-            
-            for (let i = 0; i < imageIcons.length; i++) {
-                const name = imageIcons[i];
-                const iconData = customIcons[name];
-                originalTotalSize += iconData.value.length;
-                
-                try {
-                    btn.innerHTML = `⏳ 壓縮中... (${i + 1}/${imageIcons.length})`;
-                    compressedIcons[name] = {
-                        type: 'image',
-                        value: await compressImage(iconData.value)
-                    };
-                    compressedTotalSize += compressedIcons[name].value.length;
-                    successCount++;
-                } catch (error) {
-                    console.error(`壓縮圖標 ${name} 失敗:`, error);
-                    failCount++;
-                }
-            }
-            
-            // 保存壓縮後的圖示
-            const saved = safeSetItem('categoryCustomIcons', compressedIcons);
-            if (saved) {
-                const savedMB = (originalTotalSize - compressedTotalSize) / (1024 * 1024);
-                const compressionRatio = ((1 - compressedTotalSize / originalTotalSize) * 100).toFixed(1);
-                
-                alert(`壓縮完成！\n\n成功：${successCount} 個\n失敗：${failCount} 個\n節省空間：${savedMB.toFixed(2)} MB\n壓縮率：${compressionRatio}%`);
-                
-                // 更新顯示
-                const newInfo = getStorageInfo();
-                const infoDiv = modal.querySelector('div[style*="background: #f5f5f5"]');
-                infoDiv.innerHTML = `
-                    <div style="font-size: 14px; color: #666; margin-bottom: 12px;">存儲空間使用情況</div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span style="color: #333;">圖示總數：</span>
-                        <span style="font-weight: 600; color: #2196F3;">${newInfo.iconCount} 個</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span style="color: #333;">圖片圖示：</span>
-                        <span style="font-weight: 600; color: #4CAF50;">${newInfo.imageCount} 個</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span style="color: #333;">圖示總大小：</span>
-                        <span style="font-weight: 600; color: ${newInfo.sizeInMB > 2 ? '#f44336' : newInfo.sizeInMB > 1 ? '#FF9800' : '#4CAF50'};">${newInfo.sizeInMB.toFixed(2)} MB</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between;">
-                        <span style="color: #333;">總存儲使用：</span>
-                        <span style="font-weight: 600; color: ${newInfo.totalStorageMB > 4 ? '#f44336' : newInfo.totalStorageMB > 3 ? '#FF9800' : '#4CAF50'};">${newInfo.totalStorageMB.toFixed(2)} MB / ~5 MB</span>
-                    </div>
-                `;
-                
-                // 重新渲染列表
-                if (typeof renderIconsList === 'function') {
-                    renderIconsList();
-                }
-            }
-        } catch (error) {
-            console.error('批量壓縮失敗:', error);
-            alert('批量壓縮失敗：' + error.message);
-        } finally {
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-        }
-    });
-    
-    // 清理未使用的圖示
-    modal.querySelector('#cleanUnusedIconsBtn').addEventListener('click', () => {
-        const customIcons = JSON.parse(localStorage.getItem('categoryCustomIcons') || '{}');
-        const allCategoryNames = allCategories.map(cat => cat.name);
-        const customCategoryNames = JSON.parse(localStorage.getItem('customCategories') || '[]').map(cat => cat.name);
-        const validNames = new Set([...allCategoryNames, ...customCategoryNames]);
-        
-        let removedCount = 0;
-        const cleanedIcons = {};
-        
-        Object.keys(customIcons).forEach(name => {
-            if (validNames.has(name)) {
-                cleanedIcons[name] = customIcons[name];
-            } else {
-                removedCount++;
-            }
-        });
-        
-        if (removedCount === 0) {
-            alert('沒有未使用的圖示需要清理。');
-            return;
-        }
-        
-        if (confirm(`將刪除 ${removedCount} 個未使用的圖示。確定繼續嗎？`)) {
-            safeSetItem('categoryCustomIcons', cleanedIcons);
-            alert(`已清理 ${removedCount} 個未使用的圖示。`);
-            
-            // 更新顯示
-            const newInfo = getStorageInfo();
-            const infoDiv = modal.querySelector('div[style*="background: #f5f5f5"]');
-            infoDiv.innerHTML = `
-                <div style="font-size: 14px; color: #666; margin-bottom: 12px;">存儲空間使用情況</div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="color: #333;">圖示總數：</span>
-                    <span style="font-weight: 600; color: #2196F3;">${newInfo.iconCount} 個</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="color: #333;">圖片圖示：</span>
-                    <span style="font-weight: 600; color: #4CAF50;">${newInfo.imageCount} 個</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="color: #333;">圖示總大小：</span>
-                    <span style="font-weight: 600; color: ${newInfo.sizeInMB > 2 ? '#f44336' : newInfo.sizeInMB > 1 ? '#FF9800' : '#4CAF50'};">${newInfo.sizeInMB.toFixed(2)} MB</span>
-                </div>
-                <div style="display: flex; justify-content: space-between;">
-                    <span style="color: #333;">總存儲使用：</span>
-                    <span style="font-weight: 600; color: ${newInfo.totalStorageMB > 4 ? '#f44336' : newInfo.totalStorageMB > 3 ? '#FF9800' : '#4CAF50'};">${newInfo.totalStorageMB.toFixed(2)} MB / ~5 MB</span>
-                </div>
-            `;
-            
-            // 重新渲染列表
-            if (typeof renderIconsList === 'function') {
-                renderIconsList();
-            }
-        }
-    });
-    
-    // 刪除所有自定義圖示
-    modal.querySelector('#deleteAllIconsBtn').addEventListener('click', () => {
-        const customIcons = JSON.parse(localStorage.getItem('categoryCustomIcons') || '{}');
-        const count = Object.keys(customIcons).length;
-        
-        if (count === 0) {
-            alert('沒有自定義圖示需要刪除。');
-            return;
-        }
-        
-        if (confirm(`⚠️ 警告：將刪除所有 ${count} 個自定義圖示，此操作無法復原！\n\n確定要繼續嗎？`)) {
-            if (confirm('最後確認：確定要刪除所有自定義圖示嗎？')) {
-                localStorage.removeItem('categoryCustomIcons');
-                alert('已刪除所有自定義圖示。');
-                
-                // 更新顯示
-                const newInfo = getStorageInfo();
-                const infoDiv = modal.querySelector('div[style*="background: #f5f5f5"]');
-                infoDiv.innerHTML = `
-                    <div style="font-size: 14px; color: #666; margin-bottom: 12px;">存儲空間使用情況</div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span style="color: #333;">圖示總數：</span>
-                        <span style="font-weight: 600; color: #2196F3;">${newInfo.iconCount} 個</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span style="color: #333;">圖片圖示：</span>
-                        <span style="font-weight: 600; color: #4CAF50;">${newInfo.imageCount} 個</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span style="color: #333;">圖示總大小：</span>
-                        <span style="font-weight: 600; color: ${newInfo.sizeInMB > 2 ? '#f44336' : newInfo.sizeInMB > 1 ? '#FF9800' : '#4CAF50'};">${newInfo.sizeInMB.toFixed(2)} MB</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between;">
-                        <span style="color: #333;">總存儲使用：</span>
-                        <span style="font-weight: 600; color: ${newInfo.totalStorageMB > 4 ? '#f44336' : newInfo.totalStorageMB > 3 ? '#FF9800' : '#4CAF50'};">${newInfo.totalStorageMB.toFixed(2)} MB / ~5 MB</span>
-                    </div>
-                `;
-                
-                // 重新渲染列表
-                if (typeof renderIconsList === 'function') {
-                    renderIconsList();
-                }
-                
-                // 更新分類顯示
-                if (typeof initCategoryGrid === 'function') {
-                    initCategoryGrid();
-                }
-            }
-        }
-    });
-}
 
 // 還原資料
 function restoreData() {
@@ -14207,7 +14109,8 @@ function exportData() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `記帳本匯出_${new Date().toISOString().split('T')[0]}.csv`;
+        const now = new Date();
+        a.download = `記帳本匯出_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.csv`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -14338,546 +14241,6 @@ function importData() {
     document.body.removeChild(input);
 }
 
-// ========== 分頁教學系統 ==========
-
-// 教學數據
-const tutorialData = {
-    ledger: [
-        {
-            title: '記帳本 - 基本操作',
-            icon: '✏️',
-            content: `
-                <div style="text-align: center; margin-bottom: 24px;">
-                    <div style="font-size: 64px; margin-bottom: 12px;">✏️</div>
-                    <h3 style="font-size: 20px; font-weight: 600; color: #333; margin: 0;">開始記帳</h3>
-                </div>
-                <div style="font-size: 15px; color: #666; line-height: 1.8;">
-                    <p style="margin: 0 0 12px 0;"><strong>1. 點擊右下角「✏️」按鈕</strong><br>開始新的記帳記錄</p>
-                    <p style="margin: 0 0 12px 0;"><strong>2. 選擇記帳類型</strong><br>在頂部選擇「支出」、「收入」或「轉帳」</p>
-                    <p style="margin: 0;"><strong>3. 選擇分類</strong><br>點擊分類卡片（如「飲食」、「交通」等）</p>
-                </div>
-            `
-        },
-        {
-            title: '記帳本 - 輸入金額',
-            icon: '💰',
-            content: `
-                <div style="text-align: center; margin-bottom: 24px;">
-                    <div style="font-size: 64px; margin-bottom: 12px;">💰</div>
-                    <h3 style="font-size: 20px; font-weight: 600; color: #333; margin: 0;">輸入金額</h3>
-                </div>
-                <div style="font-size: 15px; color: #666; line-height: 1.8;">
-                    <p style="margin: 0 0 12px 0;"><strong>1. 使用數字鍵盤</strong><br>點擊數字按鈕輸入金額</p>
-                    <p style="margin: 0 0 12px 0;"><strong>2. 支援運算</strong><br>可使用 +、-、×、÷ 進行計算</p>
-                    <p style="margin: 0 0 12px 0;"><strong>3. 添加備註</strong><br>（可選）在備註欄輸入說明</p>
-                    <p style="margin: 0;"><strong>4. 保存記錄</strong><br>點擊「✓」按鈕完成記帳</p>
-                </div>
-            `
-        },
-        {
-            title: '記帳本 - 進階功能',
-            icon: '🔍',
-            content: `
-                <div style="text-align: center; margin-bottom: 24px;">
-                    <div style="font-size: 64px; margin-bottom: 12px;">🔍</div>
-                    <h3 style="font-size: 20px; font-weight: 600; color: #333; margin: 0;">進階功能</h3>
-                </div>
-                <div style="font-size: 15px; color: #666; line-height: 1.8;">
-                    <p style="margin: 0 0 12px 0;"><strong>🔍 搜索記錄</strong><br>點擊搜索圖標可搜索關鍵字、日期、分類、金額</p>
-                    <p style="margin: 0 0 12px 0;"><strong>📋 常用項目</strong><br>點擊常用項目可快速填入分類和金額</p>
-                    <p style="margin: 0 0 12px 0;"><strong>📅 查看歷史</strong><br>點擊「查看歷史紀錄」查看所有記錄</p>
-                    <p style="margin: 0;"><strong>💳 切換帳戶</strong><br>點擊帳戶按鈕可切換不同帳戶記帳</p>
-                </div>
-            `
-        }
-    ],
-    wallet: [
-        {
-            title: '錢包 - 預算管理',
-            icon: '💳',
-            content: `
-                <div style="text-align: center; margin-bottom: 24px;">
-                    <div style="font-size: 64px; margin-bottom: 12px;">💳</div>
-                    <h3 style="font-size: 20px; font-weight: 600; color: #333; margin: 0;">預算設定</h3>
-                </div>
-                <div style="font-size: 15px; color: #666; line-height: 1.8;">
-                    <p style="margin: 0 0 12px 0;"><strong>1. 新增預算</strong><br>點擊「新增預算」按鈕，選擇分類並設定金額</p>
-                    <p style="margin: 0 0 12px 0;"><strong>2. 編輯預算</strong><br>點擊預算項目旁的「編輯」按鈕可修改金額</p>
-                    <p style="margin: 0 0 12px 0;"><strong>3. 查看統計</strong><br>頁面會顯示總預算、已使用和剩餘金額</p>
-                    <p style="margin: 0;"><strong>4. 進度提示</strong><br>進度條和顏色會提示預算使用情況</p>
-                </div>
-            `
-        }
-    ],
-    investment: [
-        {
-            title: '投資專區 - 基本操作',
-            icon: '📈',
-            content: `
-                <div style="text-align: center; margin-bottom: 24px;">
-                    <div style="font-size: 64px; margin-bottom: 12px;">📈</div>
-                    <h3 style="font-size: 20px; font-weight: 600; color: #333; margin: 0;">開始投資記錄</h3>
-                </div>
-                <div style="font-size: 15px; color: #666; line-height: 1.8;">
-                    <p style="margin: 0 0 12px 0;"><strong>1. 記錄買入</strong><br>點擊「➕ 買入」按鈕，輸入股票代碼、名稱、價格、股數</p>
-                    <p style="margin: 0 0 12px 0;"><strong>2. 查看持股</strong><br>在「我的持股」中查看當前持有的股票</p>
-                    <p style="margin: 0 0 12px 0;"><strong>3. 查看損益</strong><br>系統會自動計算未實現損益和年化報酬率</p>
-                    <p style="margin: 0;"><strong>4. 股息記錄</strong><br>點擊「股息」按鈕記錄股息收入</p>
-                </div>
-            `
-        },
-        {
-            title: '投資專區 - 定期定額',
-            icon: '📊',
-            content: `
-                <div style="text-align: center; margin-bottom: 24px;">
-                    <div style="font-size: 64px; margin-bottom: 12px;">📊</div>
-                    <h3 style="font-size: 20px; font-weight: 600; color: #333; margin: 0;">定期定額投資</h3>
-                </div>
-                <div style="font-size: 15px; color: #666; line-height: 1.8;">
-                    <p style="margin: 0 0 12px 0;"><strong>1. 設定計劃</strong><br>買入時勾選「定期定額投資」，在管理頁面設定計劃</p>
-                    <p style="margin: 0 0 12px 0;"><strong>2. 設定金額</strong><br>設定每月投資金額和扣款日期</p>
-                    <p style="margin: 0 0 12px 0;"><strong>3. 執行計劃</strong><br>系統會提示執行到期的定期定額計劃</p>
-                    <p style="margin: 0;"><strong>4. 查看統計</strong><br>查看總投入金額、總市值、未實現損益等統計</p>
-                </div>
-            `
-        },
-        {
-            title: '投資專區 - 股息管理',
-            icon: '💰',
-            content: `
-                <div style="text-align: center; margin-bottom: 24px;">
-                    <div style="font-size: 64px; margin-bottom: 12px;">💰</div>
-                    <h3 style="font-size: 20px; font-weight: 600; color: #333; margin: 0;">股息管理</h3>
-                </div>
-                <div style="font-size: 15px; color: #666; line-height: 1.8;">
-                    <p style="margin: 0 0 12px 0;"><strong>1. 記錄股息</strong><br>點擊「股息」按鈕，輸入股票、發放日期、金額</p>
-                    <p style="margin: 0 0 12px 0;"><strong>2. 股息月曆</strong><br>查看每月股息入帳情況</p>
-                    <p style="margin: 0 0 12px 0;"><strong>3. 年股息統計</strong><br>查看各年度股息收入統計</p>
-                    <p style="margin: 0;"><strong>4. 再投入選項</strong><br>可選擇是否將股息再投入</p>
-                </div>
-            `
-        }
-    ],
-    chart: [
-        {
-            title: '圖表分析 - 基本操作',
-            icon: '📊',
-            content: `
-                <div style="text-align: center; margin-bottom: 24px;">
-                    <div style="font-size: 64px; margin-bottom: 12px;">📊</div>
-                    <h3 style="font-size: 20px; font-weight: 600; color: #333; margin: 0;">圖表分析</h3>
-                </div>
-                <div style="font-size: 15px; color: #666; line-height: 1.8;">
-                    <p style="margin: 0 0 12px 0;"><strong>1. 選擇類型</strong><br>選擇「支出分析」或「收入分析」</p>
-                    <p style="margin: 0 0 12px 0;"><strong>2. 切換維度</strong><br>選擇「分類」、「帳戶」或「成員」維度</p>
-                    <p style="margin: 0 0 12px 0;"><strong>3. 查看圓餅圖</strong><br>查看本月支出/收入結構</p>
-                    <p style="margin: 0;"><strong>4. 查看長條圖</strong><br>查看各分類的支出/收入金額</p>
-                </div>
-            `
-        },
-        {
-            title: '圖表分析 - 進階功能',
-            icon: '📈',
-            content: `
-                <div style="text-align: center; margin-bottom: 24px;">
-                    <div style="font-size: 64px; margin-bottom: 12px;">📈</div>
-                    <h3 style="font-size: 20px; font-weight: 600; color: #333; margin: 0;">趨勢分析</h3>
-                </div>
-                <div style="font-size: 15px; color: #666; line-height: 1.8;">
-                    <p style="margin: 0 0 12px 0;"><strong>1. 每月趨勢</strong><br>查看折線圖了解每月總支出/收入趨勢</p>
-                    <p style="margin: 0 0 12px 0;"><strong>2. 成員分析</strong><br>選擇「成員」維度可查看各成員的支出/收入情況</p>
-                    <p style="margin: 0 0 12px 0;"><strong>3. 詳細數據</strong><br>圖表下方會顯示各項目的金額和百分比</p>
-                    <p style="margin: 0;"><strong>4. 數據解讀</strong><br>透過圖表快速了解財務狀況和消費習慣</p>
-                </div>
-            `
-        },
-        {
-            title: '圖表分析 - 使用技巧',
-            icon: '💡',
-            content: `
-                <div style="text-align: center; margin-bottom: 24px;">
-                    <div style="font-size: 64px; margin-bottom: 12px;">💡</div>
-                    <h3 style="font-size: 20px; font-weight: 600; color: #333; margin: 0;">使用技巧</h3>
-                </div>
-                <div style="font-size: 15px; color: #666; line-height: 1.8;">
-                    <p style="margin: 0 0 12px 0;"><strong>1. 定期查看</strong><br>建議每月查看一次圖表，了解財務變化</p>
-                    <p style="margin: 0 0 12px 0;"><strong>2. 對比分析</strong><br>切換不同維度進行對比，找出問題</p>
-                    <p style="margin: 0 0 12px 0;"><strong>3. 趨勢預測</strong><br>透過趨勢圖預測未來支出/收入</p>
-                    <p style="margin: 0;"><strong>4. 優化建議</strong><br>根據圖表數據調整預算和消費習慣</p>
-                </div>
-            `
-        }
-    ],
-    settings: [
-        {
-            title: '設置 - 基本設定',
-            icon: '⚙️',
-            content: `
-                <div style="text-align: center; margin-bottom: 24px;">
-                    <div style="font-size: 64px; margin-bottom: 12px;">⚙️</div>
-                    <h3 style="font-size: 20px; font-weight: 600; color: #333; margin: 0;">基本設定</h3>
-                </div>
-                <div style="font-size: 15px; color: #666; line-height: 1.8;">
-                    <p style="margin: 0 0 12px 0;"><strong>1. 主題顏色</strong><br>選擇喜歡的主題顏色，個性化您的記帳本</p>
-                    <p style="margin: 0 0 12px 0;"><strong>2. 字體大小</strong><br>調整字體大小，讓閱讀更舒適</p>
-                    <p style="margin: 0 0 12px 0;"><strong>3. 分類管理</strong><br>新增、編輯、啟用/禁用分類</p>
-                    <p style="margin: 0;"><strong>4. 操作教學</strong><br>隨時查看操作教學，了解各功能使用方法</p>
-                </div>
-            `
-        },
-        {
-            title: '設置 - 資料管理',
-            icon: '💾',
-            content: `
-                <div style="text-align: center; margin-bottom: 24px;">
-                    <div style="font-size: 64px; margin-bottom: 12px;">💾</div>
-                    <h3 style="font-size: 20px; font-weight: 600; color: #333; margin: 0;">資料管理</h3>
-                </div>
-                <div style="font-size: 15px; color: #666; line-height: 1.8;">
-                    <p style="margin: 0 0 12px 0;"><strong>1. 雲端備份（完整）</strong><br>先設定「Sheet 網址」與「雲端備份碼」，再點「雲端備份（完整）」把整份資料快照上傳到同一份 Google Sheet</p>
-                    <p style="margin: 0 0 12px 0;"><strong>2. 換裝置雲端還原（完整）</strong><br>新裝置設定相同「Sheet 網址」+「雲端備份碼」，點「雲端還原（完整）」即可把資料下載回來（會覆蓋現有資料）</p>
-                    <p style="margin: 0 0 12px 0;"><strong>3. 本機備份/還原</strong><br>「備份」會下載 JSON 檔；「還原」選擇 JSON 檔覆蓋資料（適合離線保存）</p>
-                    <p style="margin: 0;"><strong>4. 匯入/匯出</strong><br>可匯出 CSV 供 Excel 使用，也可從 CSV 匯入記帳記錄（適合資料交換）</p>
-                </div>
-            `
-        },
-        {
-            title: '設置 - 其他功能',
-            icon: '✨',
-            content: `
-                <div style="text-align: center; margin-bottom: 24px;">
-                    <div style="font-size: 64px; margin-bottom: 12px;">✨</div>
-                    <h3 style="font-size: 20px; font-weight: 600; color: #333; margin: 0;">其他功能</h3>
-                </div>
-                <div style="font-size: 15px; color: #666; line-height: 1.8;">
-                    <p style="margin: 0 0 12px 0;"><strong>1. 圖示管理</strong><br>自定義分類圖標，讓記帳更有趣</p>
-                    <p style="margin: 0 0 12px 0;"><strong>2. 理財顧問</strong><br>小森會根據您的記帳情況提供建議</p>
-                    <p style="margin: 0 0 12px 0;"><strong>3. 常用項目</strong><br>設定常用分類和金額，快速記帳</p>
-                    <p style="margin: 0;"><strong>4. 創作者信息</strong><br>查看應用創作者信息</p>
-                </div>
-            `
-        }
-    ]
-};
-
-// 獲取教學完成狀態
-function getTutorialCompleted(page) {
-    const completed = JSON.parse(localStorage.getItem('tutorialCompleted') || '{}');
-    return completed[page] || false;
-}
-
-// 標記教學為已完成
-function markTutorialCompleted(page) {
-    const completed = JSON.parse(localStorage.getItem('tutorialCompleted') || '{}');
-    completed[page] = true;
-    localStorage.setItem('tutorialCompleted', JSON.stringify(completed));
-}
-
-function normalizeTutorialHtml(html) {
-    if (!html || typeof html !== 'string') return html;
-    return html
-        .replace(/background\s*:\s*white\s*;/gi, 'background: var(--bg-white);')
-        .replace(/background\s*:\s*#fff\s*;/gi, 'background: var(--bg-white);')
-        .replace(/background\s*:\s*#ffffff\s*;/gi, 'background: var(--bg-white);')
-        .replace(/color\s*:\s*#333\s*;/gi, 'color: var(--text-primary);')
-        .replace(/color\s*:\s*#666\s*;/gi, 'color: var(--text-secondary);')
-        .replace(/color\s*:\s*#999\s*;/gi, 'color: var(--text-tertiary);');
-}
-
-// 顯示分頁教學
-function showPageTutorial(page) {
-    // 檢查是否已完成教學
-    if (getTutorialCompleted(page)) {
-        return;
-    }
-    
-    const pages = tutorialData[page];
-    if (!pages || pages.length === 0) {
-        return;
-    }
-    
-    let currentPage = 0;
-    
-    const modal = document.createElement('div');
-    modal.className = 'page-tutorial-modal';
-    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10005; display: flex; align-items: center; justify-content: center; padding: 20px;';
-    
-    const updateContent = () => {
-        const pageData = pages[currentPage];
-        const isFirst = currentPage === 0;
-        const isLast = currentPage === pages.length - 1;
-        
-        modal.innerHTML = `
-            <div class="tutorial-content" style="background: var(--bg-white); border-radius: 20px; padding: 32px 24px; max-width: 500px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.3); position: relative; color: var(--text-primary);">
-                <!-- 進度指示器 -->
-                <div style="display: flex; justify-content: center; gap: 8px; margin-bottom: 24px;">
-                    ${pages.map((_, index) => `
-                        <div style="width: ${index === currentPage ? '24px' : '8px'}; height: 8px; background: ${index === currentPage ? 'var(--color-primary, #ff69b4)' : '#e0e0e0'}; border-radius: 4px; transition: all 0.3s;"></div>
-                    `).join('')}
-                </div>
-                
-                <!-- 關閉按鈕 -->
-                <button class="tutorial-close-btn" style="position: absolute; top: 16px; right: 16px; background: none; border: none; font-size: 24px; color: var(--text-tertiary); cursor: pointer; padding: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: all 0.2s;">✕</button>
-                
-                <!-- 教學內容 -->
-                <div class="tutorial-page-content" style="color: var(--text-secondary);">
-                    ${normalizeTutorialHtml(pageData.content)}
-                </div>
-                
-                <!-- 底部按鈕 -->
-                <div style="display: flex; gap: 12px; margin-top: 32px;">
-                    ${!isFirst ? `
-                        <button class="tutorial-prev-btn" style="flex: 1; padding: 14px; border: 2px solid var(--border-light); border-radius: 12px; background: var(--bg-white); color: var(--text-secondary); font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s;">← 上一頁</button>
-                    ` : '<div style="flex: 1;"></div>'}
-                    ${isLast ? `
-                        <button class="tutorial-complete-btn" style="flex: 1; padding: 14px; border: none; border-radius: 12px; background: linear-gradient(135deg, #ffb6d9 0%, #ff9ec7 100%); color: white; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(255, 105, 180, 0.3);">完成</button>
-                    ` : `
-                        <button class="tutorial-next-btn" style="flex: 1; padding: 14px; border: none; border-radius: 12px; background: linear-gradient(135deg, #ffb6d9 0%, #ff9ec7 100%); color: white; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(255, 105, 180, 0.3);">下一頁 →</button>
-                    `}
-                </div>
-                
-                <!-- 跳過按鈕 -->
-                <div style="text-align: center; margin-top: 16px;">
-                    <button class="tutorial-skip-btn" style="background: none; border: none; color: var(--text-tertiary); font-size: 14px; cursor: pointer; padding: 8px;">跳過教學</button>
-                </div>
-            </div>
-        `;
-        
-        // 綁定事件
-        const closeBtn = modal.querySelector('.tutorial-close-btn');
-        const skipBtn = modal.querySelector('.tutorial-skip-btn');
-        const prevBtn = modal.querySelector('.tutorial-prev-btn');
-        const nextBtn = modal.querySelector('.tutorial-next-btn');
-        const completeBtn = modal.querySelector('.tutorial-complete-btn');
-
-        const closeModal = (markCompleted) => {
-            if (markCompleted) {
-                markTutorialCompleted(page);
-            }
-            if (document.body.contains(modal)) {
-                document.body.removeChild(modal);
-            }
-        };
-        
-        if (closeBtn) {
-            closeBtn.onclick = () => closeModal(false);
-            closeBtn.onmouseenter = () => closeBtn.style.background = '#f5f5f5';
-            closeBtn.onmouseleave = () => closeBtn.style.background = 'none';
-        }
-        
-        if (skipBtn) {
-            skipBtn.onclick = () => closeModal(true);
-        }
-        
-        if (prevBtn) {
-            prevBtn.onclick = () => {
-                if (currentPage > 0) {
-                    currentPage--;
-                    updateContent();
-                }
-            };
-            prevBtn.onmouseenter = () => prevBtn.style.background = '#f5f5f5';
-            prevBtn.onmouseleave = () => prevBtn.style.background = 'white';
-        }
-        
-        if (nextBtn) {
-            nextBtn.onclick = () => {
-                if (currentPage < pages.length - 1) {
-                    currentPage++;
-                    updateContent();
-                }
-            };
-        }
-        
-        if (completeBtn) {
-            completeBtn.onclick = () => closeModal(true);
-        }
-    };
-    
-    updateContent();
-    document.body.appendChild(modal);
-    
-    // 點擊遮罩不關閉（避免誤觸）
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            // 可以選擇是否允許點擊遮罩關閉
-            // closeModal();
-        }
-    });
-}
-
-// 顯示操作教學（保留舊版本，從設置頁面調用）
-function showTutorial() {
-    const modal = document.createElement('div');
-    modal.className = 'tutorial-modal';
-    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10004; display: flex; align-items: center; justify-content: center; overflow-y: auto;';
-    
-    modal.innerHTML = `
-        <div class="tutorial-content" style="background: var(--bg-white); border-radius: 20px; padding: 24px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; margin: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); color: var(--text-primary);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="font-size: 24px; font-weight: 600; color: var(--text-primary); margin: 0;">📚 操作教學</h2>
-                <button class="tutorial-close-btn" style="background: none; border: none; font-size: 24px; color: var(--text-tertiary); cursor: pointer; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: all 0.2s;">✕</button>
-            </div>
-            
-            <div class="tutorial-sections" style="display: flex; flex-direction: column; gap: 24px;">
-                <!-- 基本記帳 -->
-                <div class="tutorial-section">
-                    <h3 style="font-size: 18px; font-weight: 600; color: #ff69b4; margin: 0 0 12px 0; display: flex; align-items: center; gap: 8px;">
-                        <span>✏️</span> 基本記帳
-                    </h3>
-                    <div style="font-size: 14px; color: var(--text-secondary); line-height: 1.8;">
-                        <p style="margin: 0 0 8px 0;"><strong>1. 開始記帳：</strong>點擊記帳本頁面右下角的「✏️」按鈕</p>
-                        <p style="margin: 0 0 8px 0;"><strong>2. 選擇類型：</strong>在頂部選擇「支出」、「收入」或「轉帳」</p>
-                        <p style="margin: 0 0 8px 0;"><strong>3. 選擇分類：</strong>點擊分類卡片（如「飲食」、「交通」等）</p>
-                        <p style="margin: 0 0 8px 0;"><strong>4. 輸入金額：</strong>使用數字鍵盤輸入金額</p>
-                        <p style="margin: 0 0 8px 0;"><strong>5. 添加備註：</strong>（可選）在備註欄輸入說明</p>
-                        <p style="margin: 0;"><strong>6. 保存記錄：</strong>點擊「✓」按鈕保存</p>
-                    </div>
-                </div>
-                
-                <!-- 帳戶管理 -->
-                <div class="tutorial-section">
-                    <h3 style="font-size: 18px; font-weight: 600; color: #ff69b4; margin: 0 0 12px 0; display: flex; align-items: center; gap: 8px;">
-                        <span>💳</span> 帳戶管理
-                    </h3>
-                    <div style="font-size: 14px; color: var(--text-secondary); line-height: 1.8;">
-                        <p style="margin: 0 0 8px 0;"><strong>創建帳戶：</strong>首次使用時會提示創建帳戶，或點擊記帳頁面的帳戶按鈕</p>
-                        <p style="margin: 0 0 8px 0;"><strong>選擇帳戶：</strong>點擊帳戶按鈕可切換不同帳戶</p>
-                        <p style="margin: 0 0 8px 0;"><strong>帳戶圖片：</strong>在帳戶管理中可上傳和裁切帳戶圖片</p>
-                        <p style="margin: 0;"><strong>查看詳情：</strong>點擊帳戶列表中的「👁️」按鈕查看帳戶統計</p>
-                    </div>
-                </div>
-                
-                <!-- 分類管理 -->
-                <div class="tutorial-section">
-                    <h3 style="font-size: 18px; font-weight: 600; color: #ff69b4; margin: 0 0 12px 0; display: flex; align-items: center; gap: 8px;">
-                        <span>📂</span> 分類管理
-                    </h3>
-                    <div style="font-size: 14px; color: var(--text-secondary); line-height: 1.8;">
-                        <p style="margin: 0 0 8px 0;"><strong>進入管理：</strong>設置 → 分類管理</p>
-                        <p style="margin: 0 0 8px 0;"><strong>新增分類：</strong>點擊右上角「➕」按鈕，輸入名稱和圖標</p>
-                        <p style="margin: 0 0 8px 0;"><strong>啟用/禁用：</strong>切換分類旁的開關按鈕</p>
-                        <p style="margin: 0;"><strong>自定義圖標：</strong>點擊「編輯圖標」可上傳自定義圖片</p>
-                    </div>
-                </div>
-                
-                <!-- 預算設定 -->
-                <div class="tutorial-section">
-                    <h3 style="font-size: 18px; font-weight: 600; color: #ff69b4; margin: 0 0 12px 0; display: flex; align-items: center; gap: 8px;">
-                        <span>💰</span> 預算設定
-                    </h3>
-                    <div style="font-size: 14px; color: #666; line-height: 1.8;">
-                        <p style="margin: 0 0 8px 0;"><strong>進入設定：</strong>底部導航 → 錢包</p>
-                        <p style="margin: 0 0 8px 0;"><strong>新增預算：</strong>點擊「新增預算」按鈕，選擇分類並設定金額</p>
-                        <p style="margin: 0 0 8px 0;"><strong>所有分類：</strong>可以為所有分類（支出、收入、轉帳、自定義分類）設定預算</p>
-                        <p style="margin: 0 0 8px 0;"><strong>編輯預算：</strong>點擊預算項目旁的「編輯」按鈕可修改金額</p>
-                        <p style="margin: 0 0 8px 0;"><strong>重新設定：</strong>已設定預算的分類可以再次選擇並更新金額</p>
-                        <p style="margin: 0;"><strong>查看統計：</strong>頁面會自動顯示總預算、已使用和剩餘金額，並以進度條和顏色提示預算使用情況</p>
-                    </div>
-                </div>
-                
-                <!-- 投資專區 -->
-                <div class="tutorial-section">
-                    <h3 style="font-size: 18px; font-weight: 600; color: #ff69b4; margin: 0 0 12px 0; display: flex; align-items: center; gap: 8px;">
-                        <span>📈</span> 投資專區
-                    </h3>
-                    <div style="font-size: 14px; color: #666; line-height: 1.8;">
-                        <p style="margin: 0 0 8px 0;"><strong>記錄買賣：</strong>點擊「買入」或「賣出」按鈕，輸入股票資訊</p>
-                        <p style="margin: 0 0 8px 0;"><strong>定期定額：</strong>買入時勾選「定期定額投資」，在管理頁面設定計劃</p>
-                        <p style="margin: 0 0 8px 0;"><strong>執行定期定額：</strong>系統會提示執行到期的定期定額計劃</p>
-                        <p style="margin: 0;"><strong>查看持股：</strong>在投資專區可查看當前持股和損益</p>
-                    </div>
-                </div>
-                
-                <!-- 圖表分析 -->
-                <div class="tutorial-section">
-                    <h3 style="font-size: 18px; font-weight: 600; color: #ff69b4; margin: 0 0 12px 0; display: flex; align-items: center; gap: 8px;">
-                        <span>📊</span> 圖表分析
-                    </h3>
-                    <div style="font-size: 14px; color: #666; line-height: 1.8;">
-                        <p style="margin: 0 0 8px 0;"><strong>進入分析：</strong>底部導航 → 圖表分析</p>
-                        <p style="margin: 0 0 8px 0;"><strong>切換類型：</strong>選擇「支出分析」或「收入分析」</p>
-                        <p style="margin: 0 0 8px 0;"><strong>切換維度：</strong>選擇「分類」、「帳戶」或「成員」維度</p>
-                        <p style="margin: 0 0 8px 0;"><strong>成員維度：</strong>用於分析不同成員的支出/收入情況，適合家庭或團隊記帳</p>
-                        <p style="margin: 0;"><strong>查看詳情：</strong>圖表下方會顯示各項目的金額和百分比</p>
-                    </div>
-                </div>
-                
-                <!-- 資料備份 -->
-                <div class="tutorial-section">
-                    <h3 style="font-size: 18px; font-weight: 600; color: #ff69b4; margin: 0 0 12px 0; display: flex; align-items: center; gap: 8px;">
-                        <span>💾</span> 資料備份與還原
-                    </h3>
-                    <div style="font-size: 14px; color: #666; line-height: 1.8;">
-                        <p style="margin: 0 0 8px 0;"><strong>雲端備份（完整）：</strong>設置 → Sheet 網址（貼上 /exec）→ 雲端備份碼 → 雲端備份（完整）</p>
-                        <p style="margin: 0 0 8px 0;"><strong>換裝置雲端還原（完整）：</strong>新裝置同樣設定 Sheet 網址 + 雲端備份碼 → 雲端還原（完整）</p>
-                        <p style="margin: 0 0 8px 0;"><strong>本機備份/還原：</strong>設置 → 備份（下載 JSON）/ 還原（選擇 JSON 覆蓋）</p>
-                        <p style="margin: 0 0 8px 0;"><strong>匯入/匯出：</strong>設置 → 匯出（CSV）/ 匯入（CSV）</p>
-                        <p style="margin: 0;"><strong>注意：</strong>任何「還原」都會覆蓋現有資料，建議先做一次備份再操作</p>
-                    </div>
-                </div>
-                
-                <!-- 成員功能 -->
-                <div class="tutorial-section">
-                    <h3 style="font-size: 18px; font-weight: 600; color: #ff69b4; margin: 0 0 12px 0; display: flex; align-items: center; gap: 8px;">
-                        <span>👤</span> 成員功能
-                    </h3>
-                    <div style="font-size: 14px; color: #666; line-height: 1.8;">
-                        <p style="margin: 0 0 8px 0;"><strong>什麼是成員：</strong>成員功能用於標記每筆記帳的歸屬人，適合家庭或團隊共同記帳</p>
-                        <p style="margin: 0 0 8px 0;"><strong>選擇成員：</strong>記帳時點擊「👤」按鈕，選擇或新增成員</p>
-                        <p style="margin: 0 0 8px 0;"><strong>新增成員：</strong>在成員選擇對話框中點擊「新增成員」，輸入名稱和圖標</p>
-                        <p style="margin: 0 0 8px 0;"><strong>圖表分析：</strong>在圖表分析中選擇「成員」維度，可查看各成員的支出/收入統計</p>
-                        <p style="margin: 0;"><strong>查看記錄：</strong>記帳本中會顯示每筆記錄的成員信息</p>
-                    </div>
-                </div>
-                
-                <!-- 其他功能 -->
-                <div class="tutorial-section">
-                    <h3 style="font-size: 18px; font-weight: 600; color: #ff69b4; margin: 0 0 12px 0; display: flex; align-items: center; gap: 8px;">
-                        <span>✨</span> 其他功能
-                    </h3>
-                    <div style="font-size: 14px; color: #666; line-height: 1.8;">
-                        <p style="margin: 0 0 8px 0;"><strong>表情選擇：</strong>記帳時點擊表情按鈕可選擇或上傳自定義表情</p>
-                        <p style="margin: 0 0 8px 0;"><strong>圖片上傳：</strong>記帳時可上傳圖片作為記錄附件</p>
-                        <p style="margin: 0 0 8px 0;"><strong>搜索功能：</strong>記帳本頁面點擊搜索圖標可搜索記錄</p>
-                        <p style="margin: 0;"><strong>日期選擇：</strong>記帳時點擊日期按鈕可選擇不同日期</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    // 綁定關閉按鈕
-    const closeBtn = modal.querySelector('.tutorial-close-btn');
-    if (closeBtn) {
-        closeBtn.addEventListener('click', () => {
-            if (document.body.contains(modal)) {
-                document.body.removeChild(modal);
-            }
-        });
-        
-        // 懸停效果
-        closeBtn.addEventListener('mouseenter', () => {
-            closeBtn.style.background = '#f5f5f5';
-        });
-        closeBtn.addEventListener('mouseleave', () => {
-            closeBtn.style.background = 'none';
-        });
-    }
-    
-    // 點擊遮罩關閉
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            if (document.body.contains(modal)) {
-                document.body.removeChild(modal);
-            }
-        }
-    });
-}
-
 // 顯示創作者信息
 function showCreatorInfo() {
     const modal = document.createElement('div');
@@ -15028,1332 +14391,6 @@ function showCreatorInfo() {
             }
         }
     });
-}
-
-// ========== 主題顏色功能 ==========
-
-const themes = [
-    {
-        id: 'pink',
-        name: '粉色主題',
-        icon: '💖',
-        buttonIcon: '💗',
-        preview: 'linear-gradient(135deg, #ffeef5 0%, #fff5f9 100%)',
-        color: '#ff69b4'
-    },
-    {
-        id: 'blue',
-        name: '藍色主題',
-        icon: '💙',
-        buttonIcon: '💙',
-        preview: 'linear-gradient(135deg, #e8f4fd 0%, #f0f8ff 100%)',
-        color: '#4a90e2'
-    },
-    {
-        id: 'green',
-        name: '綠色主題',
-        icon: '💚',
-        buttonIcon: '💚',
-        preview: 'linear-gradient(135deg, #e8f5e9 0%, #f1f8f4 100%)',
-        color: '#4caf50'
-    },
-    {
-        id: 'purple',
-        name: '紫色主題',
-        icon: '💜',
-        buttonIcon: '💜',
-        preview: 'linear-gradient(135deg, #f3e5f5 0%, #fce4ec 100%)',
-        color: '#9c27b0'
-    },
-    {
-        id: 'orange',
-        name: '橙色主題',
-        icon: '🧡',
-        buttonIcon: '🧡',
-        preview: 'linear-gradient(135deg, #fff3e0 0%, #fff8f0 100%)',
-        color: '#ff9800'
-    },
-    {
-        id: 'cyan',
-        name: '青色主題',
-        icon: '💠',
-        buttonIcon: '💠',
-        preview: 'linear-gradient(135deg, #e0f7fa 0%, #f0fdfe 100%)',
-        color: '#00bcd4'
-    },
-    {
-        id: 'star',
-        name: '星空主題',
-        icon: '✨',
-        buttonIcon: '✨',
-        preview: 'linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%)',
-        color: '#8b7cf6'
-    },
-    {
-        id: 'sakura',
-        name: '櫻花主題',
-        icon: '🌸',
-        buttonIcon: '🌸',
-        preview: 'linear-gradient(135deg, #ffeef5 0%, #fff0f8 100%)',
-        color: '#ffb3d9'
-    },
-    {
-        id: 'red',
-        name: '紅色主題',
-        icon: '❤️',
-        buttonIcon: '❤️',
-        preview: 'linear-gradient(135deg, #ffebee 0%, #fce4ec 100%)',
-        color: '#e53935'
-    },
-    {
-        id: 'yellow',
-        name: '黃色主題',
-        icon: '💛',
-        buttonIcon: '💛',
-        preview: 'linear-gradient(135deg, #fffde7 0%, #fffef5 100%)',
-        color: '#fbc02d'
-    },
-    {
-        id: 'indigo',
-        name: '靛藍主題',
-        icon: '💙',
-        buttonIcon: '💙',
-        preview: 'linear-gradient(135deg, #e8eaf6 0%, #f3f4f9 100%)',
-        color: '#5c6bc0'
-    },
-    {
-        id: 'teal',
-        name: '茶色主題',
-        icon: '💚',
-        buttonIcon: '💚',
-        preview: 'linear-gradient(135deg, #e0f2f1 0%, #f0f9f8 100%)',
-        color: '#26a69a'
-    },
-    {
-        id: 'rosegold',
-        name: '玫瑰金主題',
-        icon: '🌹',
-        buttonIcon: '🌹',
-        preview: 'linear-gradient(135deg, #fce4ec 0%, #fff0f5 100%)',
-        color: '#e91e63'
-    },
-    {
-        id: 'aurora',
-        name: '極光主題',
-        icon: '🌈',
-        buttonIcon: '🌈',
-        preview: 'linear-gradient(135deg, #071a52 0%, #0b8457 50%, #7c3aed 100%)',
-        color: '#00d4ff'
-    },
-    {
-        id: 'bubble',
-        name: '泡泡主題',
-        icon: '🫧',
-        buttonIcon: '🫧',
-        preview: 'linear-gradient(135deg, #e6f7ff 0%, #ffffff 100%)',
-        color: '#4dd0e1'
-    },
-    {
-        id: 'rain',
-        name: '雨滴主題',
-        icon: '🌧️',
-        buttonIcon: '🌧️',
-        preview: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-        color: '#60a5fa'
-    },
-    {
-        id: 'firefly',
-        name: '螢火蟲主題',
-        icon: '✨',
-        buttonIcon: '✨',
-        preview: 'linear-gradient(135deg, #0b1020 0%, #1a2b3f 100%)',
-        color: '#facc15'
-    },
-    {
-        id: 'neon',
-        name: '霓虹波動',
-        icon: '🟣',
-        buttonIcon: '🟣',
-        preview: 'linear-gradient(135deg, #0b1020 0%, #1f1147 50%, #00d4ff 100%)',
-        color: '#7c3aed'
-    },
-    {
-        id: 'sunset',
-        name: '夕陽流光',
-        icon: '🌇',
-        buttonIcon: '🌇',
-        preview: 'linear-gradient(135deg, #ff7a18 0%, #af002d 50%, #319197 100%)',
-        color: '#ff7a18'
-    },
-    {
-        id: 'ocean',
-        name: '海洋漣漪',
-        icon: '🌊',
-        buttonIcon: '🌊',
-        preview: 'linear-gradient(135deg, #0ea5e9 0%, #22c55e 50%, #06b6d4 100%)',
-        color: '#0ea5e9'
-    },
-    {
-        id: 'forest',
-        name: '森林微風',
-        icon: '🌿',
-        buttonIcon: '🌿',
-        preview: 'linear-gradient(135deg, #064e3b 0%, #16a34a 50%, #84cc16 100%)',
-        color: '#16a34a'
-    },
-    {
-        id: 'galaxy',
-        name: '星雲漂移',
-        icon: '🪐',
-        buttonIcon: '🪐',
-        preview: 'linear-gradient(135deg, #0b1020 0%, #3b0764 50%, #1d4ed8 100%)',
-        color: '#8b5cf6'
-    },
-    {
-        id: 'lava',
-        name: '熔岩脈動',
-        icon: '🌋',
-        buttonIcon: '🌋',
-        preview: 'linear-gradient(135deg, #0f172a 0%, #b91c1c 50%, #fb923c 100%)',
-        color: '#ef4444'
-    },
-    {
-        id: 'mint',
-        name: '薄荷清涼',
-        icon: '🍃',
-        buttonIcon: '🍃',
-        preview: 'linear-gradient(135deg, #ecfeff 0%, #d1fae5 50%, #bbf7d0 100%)',
-        color: '#10b981'
-    },
-    {
-        id: 'coffee',
-        name: '咖啡暖光',
-        icon: '☕',
-        buttonIcon: '☕',
-        preview: 'linear-gradient(135deg, #3f2d20 0%, #7c4a2d 50%, #f59e0b 100%)',
-        color: '#b45309'
-    },
-    {
-        id: 'peach',
-        name: '蜜桃柔霧',
-        icon: '🍑',
-        buttonIcon: '🍑',
-        preview: 'linear-gradient(135deg, #fff1f2 0%, #ffedd5 50%, #ffe4e6 100%)',
-        color: '#fb7185'
-    },
-    {
-        id: 'mono',
-        name: '黑白律動',
-        icon: '⚫',
-        buttonIcon: '⚫',
-        preview: 'linear-gradient(135deg, #0b0f19 0%, #334155 50%, #e2e8f0 100%)',
-        color: '#0f172a'
-    },
-    {
-        id: 'snow',
-        name: '飄雪主題',
-        icon: '❄️',
-        buttonIcon: '❄️',
-        preview: 'linear-gradient(135deg, #e8f1ff 0%, #ffffff 100%)',
-        color: '#93c5fd'
-    },
-    {
-        id: 'cute',
-        name: '可愛圖片主題',
-        icon: '🐾',
-        buttonIcon: '🐾',
-        preview: 'linear-gradient(135deg, rgba(255, 255, 255, 0.75) 0%, rgba(230, 247, 255, 0.75) 100%), url("image/BMG.jpg") center/cover',
-        color: '#4dd0e1'
-    },
-    {
-        id: 'auroraflow',
-        name: '極光動態主題',
-        icon: '🌠',
-        buttonIcon: '🌠',
-        preview: 'linear-gradient(135deg, #0f172a 0%, #2563eb 35%, #34d399 70%, #a855f7 100%)',
-        color: '#34d399'
-    },
-    {
-        id: 'meteor',
-        name: '流星動態主題',
-        icon: '☄️',
-        buttonIcon: '☄️',
-        preview: 'linear-gradient(135deg, #020617 0%, #0f172a 45%, #1d4ed8 100%)',
-        color: '#60a5fa'
-    },
-    {
-        id: 'cyber',
-        name: '霓虹動態主題',
-        icon: '⚡',
-        buttonIcon: '⚡',
-        preview: 'linear-gradient(135deg, #050816 0%, #0f172a 35%, #00f5ff 70%, #ff2d95 100%)',
-        color: '#00f5ff'
-    },
-    {
-        id: 'sunrise',
-        name: '晨曦動態主題',
-        icon: '🌅',
-        buttonIcon: '🌅',
-        preview: 'linear-gradient(135deg, #140f26 0%, #f472b6 40%, #facc15 100%)',
-        color: '#f97316'
-    }
-];
-
-// 獲取當前主題
-function getCurrentTheme() {
-    return localStorage.getItem('selectedTheme') || 'pink';
-}
-
-// 應用主題
-function applyTheme(themeId) {
-    const root = document.documentElement;
-    root.setAttribute('data-theme', themeId);
-    localStorage.setItem('selectedTheme', themeId);
-    
-    // 清除自訂的框顏色，使用預設主題的框顏色（白色）
-    root.style.removeProperty('--bg-white');
-    
-    // 更新所有按鈕圖標
-    updateThemeButtons(themeId);
-    
-    // 櫻花主題：創建飄落花瓣動畫
-    if (themeId === 'sakura') {
-        createSakuraPetals();
-    } else {
-        removeSakuraPetals();
-    }
-    
-    // 如果圖表頁面正在顯示，重新生成圖表以應用新主題顏色
-    const pageChart = document.getElementById('pageChart');
-    if (pageChart && pageChart.style.display !== 'none') {
-        if (typeof updateAllCharts === 'function') {
-            updateAllCharts();
-        }
-    }
-}
-
-// 創建櫻花花瓣動畫
-function createSakuraPetals() {
-    // 移除現有的花瓣
-    removeSakuraPetals();
-    
-    // 創建櫻花花瓣容器
-    const petalContainer = document.createElement('div');
-    petalContainer.id = 'sakuraPetalContainer';
-    petalContainer.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: hidden;';
-    document.body.appendChild(petalContainer);
-    
-    // 創建多個花瓣
-    for (let i = 0; i < 20; i++) {
-        const petal = document.createElement('div');
-        petal.className = 'sakura-petal';
-        petal.style.left = Math.random() * 100 + '%';
-        petal.style.animationDelay = Math.random() * 8 + 's';
-        petal.style.animationDuration = (8 + Math.random() * 4) + 's';
-        petalContainer.appendChild(petal);
-    }
-}
-
-// 移除櫻花花瓣動畫
-function removeSakuraPetals() {
-    const container = document.getElementById('sakuraPetalContainer');
-    if (container) {
-        container.remove();
-    }
-}
-
-// 更新主題相關的按鈕圖標
-function updateThemeButtons(themeId) {
-    // 定義不同主題的按鈕圖標映射
-    const buttonIcons = {
-        pink: { 
-            fab: '✏️', 
-            navLedger: '📖', 
-            navWallet: '💰', 
-            navInvestment: '📈', 
-            navChart: '📊', 
-            navSettings: '⚙️' 
-        },
-        blue: { 
-            fab: '✍️', 
-            navLedger: '📘', 
-            navWallet: '💵', 
-            navInvestment: '📉', 
-            navChart: '📋', 
-            navSettings: '🔧' 
-        },
-        green: { 
-            fab: '📝', 
-            navLedger: '📗', 
-            navWallet: '💴', 
-            navInvestment: '📊', 
-            navChart: '📈', 
-            navSettings: '⚙️' 
-        },
-        purple: { 
-            fab: '🖊️', 
-            navLedger: '📕', 
-            navWallet: '💶', 
-            navInvestment: '💹', 
-            navChart: '📉', 
-            navSettings: '🎛️' 
-        },
-        orange: { 
-            fab: '✎', 
-            navLedger: '📓', 
-            navWallet: '💷', 
-            navInvestment: '📌', 
-            navChart: '📑', 
-            navSettings: '🔩' 
-        },
-        cyan: { 
-            fab: '✐', 
-            navLedger: '📙', 
-            navWallet: '💸', 
-            navInvestment: '📍', 
-            navChart: '📄', 
-            navSettings: '🛠️' 
-        },
-        star: { 
-            fab: '⭐', 
-            navLedger: '🌌', 
-            navWallet: '💫', 
-            navInvestment: '🌟', 
-            navChart: '🔭', 
-            navSettings: '🌠' 
-        },
-        sakura: { 
-            fab: '🌸', 
-            navLedger: '🌸', 
-            navWallet: '🌸', 
-            navInvestment: '🌸', 
-            navChart: '🌸', 
-            navSettings: '🌸' 
-        },
-        red: { 
-            fab: '❤️', 
-            navLedger: '📕', 
-            navWallet: '💴', 
-            navInvestment: '📊', 
-            navChart: '📈', 
-            navSettings: '⚙️' 
-        },
-        yellow: { 
-            fab: '💛', 
-            navLedger: '📒', 
-            navWallet: '💰', 
-            navInvestment: '📈', 
-            navChart: '📊', 
-            navSettings: '🔧' 
-        },
-        indigo: { 
-            fab: '💙', 
-            navLedger: '📘', 
-            navWallet: '💵', 
-            navInvestment: '📉', 
-            navChart: '📋', 
-            navSettings: '🔧' 
-        },
-        teal: { 
-            fab: '💚', 
-            navLedger: '📗', 
-            navWallet: '💶', 
-            navInvestment: '💹', 
-            navChart: '📉', 
-            navSettings: '🎛️' 
-        },
-        rosegold: { 
-            fab: '🌹', 
-            navLedger: '📔', 
-            navWallet: '💷', 
-            navInvestment: '📌', 
-            navChart: '📑', 
-            navSettings: '🔩' 
-        },
-        aurora: {
-            fab: '🌈',
-            navLedger: '🌈',
-            navWallet: '💎',
-            navInvestment: '📈',
-            navChart: '📊',
-            navSettings: '⚙️'
-        },
-        bubble: {
-            fab: '🫧',
-            navLedger: '🫧',
-            navWallet: '💧',
-            navInvestment: '📉',
-            navChart: '📊',
-            navSettings: '⚙️'
-        },
-        rain: {
-            fab: '🌧️',
-            navLedger: '🌧️',
-            navWallet: '💧',
-            navInvestment: '📉',
-            navChart: '📋',
-            navSettings: '🔧'
-        },
-        firefly: {
-            fab: '✨',
-            navLedger: '✨',
-            navWallet: '💫',
-            navInvestment: '🌟',
-            navChart: '🔭',
-            navSettings: '🌠'
-        },
-        snow: {
-            fab: '❄️',
-            navLedger: '❄️',
-            navWallet: '💎',
-            navInvestment: '📈',
-            navChart: '📊',
-            navSettings: '⚙️'
-        },
-        cute: {
-            fab: '🐾',
-            navLedger: '🐾',
-            navWallet: '💰',
-            navInvestment: '📈',
-            navChart: '📊',
-            navSettings: '⚙️'
-        },
-        neon: {
-            fab: '🟣',
-            navLedger: '🟣',
-            navWallet: '💎',
-            navInvestment: '📈',
-            navChart: '📊',
-            navSettings: '⚙️'
-        },
-        sunset: {
-            fab: '🌇',
-            navLedger: '🌇',
-            navWallet: '💰',
-            navInvestment: '📈',
-            navChart: '📊',
-            navSettings: '⚙️'
-        },
-        ocean: {
-            fab: '🌊',
-            navLedger: '🌊',
-            navWallet: '💧',
-            navInvestment: '📉',
-            navChart: '📊',
-            navSettings: '⚙️'
-        },
-        forest: {
-            fab: '🌿',
-            navLedger: '🌿',
-            navWallet: '💶',
-            navInvestment: '📈',
-            navChart: '📊',
-            navSettings: '⚙️'
-        },
-        galaxy: {
-            fab: '🪐',
-            navLedger: '🪐',
-            navWallet: '💫',
-            navInvestment: '🌟',
-            navChart: '🔭',
-            navSettings: '🌠'
-        },
-        lava: {
-            fab: '🌋',
-            navLedger: '🌋',
-            navWallet: '💴',
-            navInvestment: '📈',
-            navChart: '📊',
-            navSettings: '⚙️'
-        },
-        mint: {
-            fab: '🍃',
-            navLedger: '🍃',
-            navSettings: '⚙️'
-        },
-        peach: {
-            fab: '🍑',
-            navLedger: '🍑',
-            navWallet: '💰',
-            navInvestment: '📉',
-            navChart: '📊',
-            navSettings: '⚙️'
-        },
-        mono: {
-            fab: '⚫',
-            navLedger: '⚫',
-            navWallet: '💰',
-            navInvestment: '📈',
-            navChart: '📊',
-            navSettings: '⚙️'
-        },
-        auroraflow: {
-            fab: '🌠',
-            navLedger: '🌈',
-            navWallet: '💎',
-            navInvestment: '🚀',
-            navChart: '📊',
-            navSettings: '⚙️'
-        },
-        meteor: {
-            fab: '☄️',
-            navLedger: '☄️',
-            navWallet: '💫',
-            navInvestment: '🌠',
-            navChart: '🔭',
-            navSettings: '⚙️'
-        },
-        cyber: {
-            fab: '⚡',
-            navLedger: '⚡',
-            navWallet: '💾',
-            navInvestment: '🛰️',
-            navChart: '📟',
-            navSettings: '🛠️'
-        },
-        sunrise: {
-            fab: '🌅',
-            navLedger: '🌄',
-            navWallet: '💰',
-            navInvestment: '📈',
-            navChart: '📊',
-            navSettings: '⚙️'
-        }
-    };
-
-    const iconAssetsDefault = {
-        nav: {
-            ledger: 'image/1.png',
-            wallet: 'image/2.png',
-            investment: 'image/3.png',
-            chart: 'image/4.png',
-            settings: 'image/5.png'
-        }
-    };
-
-    const iconAssetsCute = {
-        nav: {
-            ledger: 'image/1.png',
-            wallet: 'image/2.png',
-            investment: 'image/3.png',
-            chart: 'image/4.png',
-            settings: 'image/5.png'
-        },
-        fab: 'image/6.png'
-    };
-
-    const setButtonImgIcon = (btn, src) => {
-        if (!btn) return;
-        btn.innerHTML = `<img src="${src}" alt="icon" class="ui-icon-img" style="width: 28px; height: 28px; object-fit: contain;" />`;
-    };
-    
-    const icons = buttonIcons[themeId] || buttonIcons.pink;
-    const iconAssets = themeId === 'cute' ? iconAssetsCute : iconAssetsDefault;
-    
-    // 更新浮動添加按鈕（記帳本頁面的按鈕）
-    const fabBtn = document.getElementById('fabBtn');
-    if (fabBtn) {
-        if (themeId === 'cute') {
-            setButtonImgIcon(fabBtn, iconAssetsCute.fab);
-        } else {
-            fabBtn.textContent = icons.fab;
-        }
-    }
-    
-    // 更新底部導航按鈕圖標
-    const navItems = document.querySelectorAll('.nav-item');
-    navItems.forEach(item => {
-        const page = item.dataset.page;
-        const navIcon = item.querySelector('.nav-icon');
-        if (navIcon) {
-            if (navIcon.tagName === 'IMG') {
-                const src = iconAssets.nav[page];
-                if (src) {
-                    navIcon.src = src;
-                }
-            } else {
-                switch(page) {
-                    case 'ledger':
-                        navIcon.textContent = icons.navLedger;
-                        break;
-                    case 'wallet':
-                        navIcon.textContent = icons.navWallet;
-                        break;
-                    case 'investment':
-                        navIcon.textContent = icons.navInvestment;
-                        break;
-                    case 'chart':
-                        navIcon.textContent = icons.navChart;
-                        break;
-                    case 'settings':
-                        navIcon.textContent = icons.navSettings;
-                        break;
-                }
-            }
-        }
-    });
-    
-    // 櫻花主題：更新所有按鈕圖標為櫻花
-    if (themeId === 'sakura') {
-        updateSakuraButtons();
-    } else {
-        // 切換到其他主題時恢復原始圖標
-        restoreButtonIcons();
-    }
-}
-
-// 按鈕原始圖標存儲
-const originalButtonIcons = {
-    accountBtn: '💳',
-    emojiBtn: '😊',
-    memberBtn: '👤',
-    imageBtn: '📷',
-    checkBtn: '✓',
-    searchBtn: '🔍',
-    addCategoryBtn: '➕',
-    quickNotes: {
-        '早餐': '🍳',
-        '午餐': '🍱',
-        '晚餐': '🍽️',
-        '交通': '🚗',
-        '購物': '🛒',
-        '娛樂': '🎮'
-    }
-};
-
-// 更新櫻花主題下的所有按鈕圖標
-function updateSakuraButtons() {
-    // 更新輸入頁面的按鈕
-    const accountBtn = document.querySelector('.account-btn');
-    if (accountBtn) {
-        if (!accountBtn.dataset.originalIcon) {
-            accountBtn.dataset.originalIcon = accountBtn.textContent;
-        }
-        accountBtn.textContent = '🌸';
-    }
-    
-    const emojiBtn = document.querySelector('.emoji-btn');
-    if (emojiBtn) {
-        if (!emojiBtn.dataset.originalIcon) {
-            emojiBtn.dataset.originalIcon = emojiBtn.textContent;
-        }
-        emojiBtn.textContent = '🌸';
-    }
-    
-    const memberBtn = document.getElementById('memberBtn');
-    if (memberBtn) {
-        if (!memberBtn.dataset.originalIcon) {
-            memberBtn.dataset.originalIcon = memberBtn.textContent;
-        }
-        memberBtn.textContent = '🌸';
-        memberBtn.title = '成員';
-    }
-    
-    const imageBtn = document.getElementById('imageBtn');
-    if (imageBtn) {
-        if (!imageBtn.dataset.originalIcon) {
-            imageBtn.dataset.originalIcon = imageBtn.textContent;
-        }
-        imageBtn.textContent = '🌸';
-        imageBtn.title = '添加圖片';
-    }
-    
-    const checkBtn = document.getElementById('saveBtn');
-    if (checkBtn) {
-        if (!checkBtn.dataset.originalIcon) {
-            checkBtn.dataset.originalIcon = checkBtn.textContent;
-        }
-        checkBtn.textContent = '🌸';
-    }
-    
-    // 更新常用備註按鈕
-    const quickNoteButtons = document.querySelectorAll('.quick-note-btn');
-    quickNoteButtons.forEach(btn => {
-        const note = btn.dataset.note;
-        if (note) {
-            if (!btn.dataset.originalIcon) {
-                btn.dataset.originalIcon = btn.innerHTML;
-            }
-            btn.innerHTML = `🌸 ${note}`;
-        }
-    });
-    
-    // 更新其他功能按鈕
-    const addCategoryBtn = document.getElementById('addCategoryBtn');
-    if (addCategoryBtn) {
-        if (!addCategoryBtn.dataset.originalIcon) {
-            addCategoryBtn.dataset.originalIcon = addCategoryBtn.textContent;
-        }
-        addCategoryBtn.textContent = '🌸';
-    }
-    
-    const searchBtn = document.getElementById('searchBtn');
-    if (searchBtn) {
-        if (!searchBtn.dataset.originalIcon) {
-            searchBtn.dataset.originalIcon = searchBtn.textContent;
-        }
-        searchBtn.textContent = '🌸';
-    }
-    
-    // 更新等於按鈕
-    const equalBtn = document.querySelector('.key-btn.equal');
-    if (equalBtn && equalBtn.dataset.key === '=') {
-        if (!equalBtn.dataset.originalIcon) {
-            equalBtn.dataset.originalIcon = equalBtn.textContent;
-        }
-        equalBtn.textContent = '🌸';
-    }
-}
-
-// 恢復按鈕原始圖標
-function restoreButtonIcons() {
-    // 恢復所有存儲了原始圖標的按鈕
-    document.querySelectorAll('[data-original-icon]').forEach(btn => {
-        const originalIcon = btn.dataset.originalIcon;
-        if (originalIcon) {
-            if (btn.classList.contains('quick-note-btn')) {
-                btn.innerHTML = originalIcon;
-            } else {
-                btn.textContent = originalIcon;
-            }
-            btn.removeAttribute('data-original-icon');
-        }
-    });
-    
-    // 恢復常用備註按鈕（如果沒有存儲）
-    const quickNoteButtons = document.querySelectorAll('.quick-note-btn');
-    quickNoteButtons.forEach(btn => {
-        const note = btn.dataset.note;
-        if (note && originalButtonIcons.quickNotes[note]) {
-            btn.innerHTML = `${originalButtonIcons.quickNotes[note]} ${note}`;
-        }
-    });
-    
-    // 恢復其他按鈕（如果沒有存儲）
-    const accountBtn = document.querySelector('.account-btn');
-    if (accountBtn && !accountBtn.dataset.originalIcon) {
-        accountBtn.textContent = originalButtonIcons.accountBtn;
-    }
-    
-    const emojiBtn = document.querySelector('.emoji-btn');
-    if (emojiBtn && !emojiBtn.dataset.originalIcon) {
-        emojiBtn.textContent = originalButtonIcons.emojiBtn;
-    }
-    
-    const memberBtn = document.getElementById('memberBtn');
-    if (memberBtn && !memberBtn.dataset.originalIcon) {
-        memberBtn.textContent = originalButtonIcons.memberBtn;
-    }
-    
-    const imageBtn = document.getElementById('imageBtn');
-    if (imageBtn && !imageBtn.dataset.originalIcon) {
-        imageBtn.textContent = originalButtonIcons.imageBtn;
-    }
-    
-    const checkBtn = document.getElementById('saveBtn');
-    if (checkBtn && !checkBtn.dataset.originalIcon) {
-        checkBtn.textContent = originalButtonIcons.checkBtn;
-    }
-    
-    const searchBtn = document.getElementById('searchBtn');
-    if (searchBtn && !searchBtn.dataset.originalIcon) {
-        searchBtn.textContent = originalButtonIcons.searchBtn;
-    }
-    
-    const addCategoryBtn = document.getElementById('addCategoryBtn');
-    if (addCategoryBtn && !addCategoryBtn.dataset.originalIcon) {
-        addCategoryBtn.textContent = originalButtonIcons.addCategoryBtn;
-    }
-    
-    const equalBtn = document.querySelector('.key-btn.equal');
-    if (equalBtn && equalBtn.dataset.key === '=' && !equalBtn.dataset.originalIcon) {
-        equalBtn.textContent = '=';
-    }
-}
-
-// 顯示主題選擇器
-// 獲取自訂主題設定
-function getCustomTheme() {
-    return JSON.parse(localStorage.getItem('customTheme') || '{}');
-}
-
-// 保存自訂主題設定
-function saveCustomTheme(theme) {
-    localStorage.setItem('customTheme', JSON.stringify(theme));
-}
-
-// 應用自訂主題
-function applyCustomTheme() {
-    const customTheme = getCustomTheme();
-    const root = document.documentElement;
-    
-    // 如果沒有自訂主題，清除所有自訂樣式
-    if (!customTheme || Object.keys(customTheme).length === 0) {
-        root.style.removeProperty('--color-primary');
-        root.style.removeProperty('--color-primary-light');
-        root.style.removeProperty('--color-primary-lighter');
-        root.style.removeProperty('--color-primary-dark');
-        root.style.removeProperty('--border-primary');
-        root.style.removeProperty('--bg-white');
-        root.style.removeProperty('--bg-primary');
-        document.body.style.background = '';
-        document.body.style.backgroundImage = '';
-        document.body.style.backgroundSize = '';
-        document.body.style.backgroundPosition = '';
-        document.body.style.backgroundRepeat = '';
-        return;
-    }
-    
-    // 應用主色調
-    if (customTheme.primaryColor) {
-        root.style.setProperty('--color-primary', customTheme.primaryColor);
-        root.style.setProperty('--border-primary', customTheme.primaryColor);
-        
-        // 計算主色調的變體
-        const hex = customTheme.primaryColor.replace('#', '');
-        const r = parseInt(hex.substr(0, 2), 16);
-        const g = parseInt(hex.substr(2, 2), 16);
-        const b = parseInt(hex.substr(4, 2), 16);
-        
-        // 生成淺色變體
-        const lightR = Math.min(255, Math.floor(r + (255 - r) * 0.3));
-        const lightG = Math.min(255, Math.floor(g + (255 - g) * 0.3));
-        const lightB = Math.min(255, Math.floor(b + (255 - b) * 0.3));
-        root.style.setProperty('--color-primary-light', `rgb(${lightR}, ${lightG}, ${lightB})`);
-        
-        // 生成更淺色變體
-        const lighterR = Math.min(255, Math.floor(r + (255 - r) * 0.5));
-        const lighterG = Math.min(255, Math.floor(g + (255 - g) * 0.5));
-        const lighterB = Math.min(255, Math.floor(b + (255 - b) * 0.5));
-        root.style.setProperty('--color-primary-lighter', `rgb(${lighterR}, ${lighterG}, ${lighterB})`);
-        
-        // 生成深色變體
-        const darkR = Math.max(0, Math.floor(r * 0.8));
-        const darkG = Math.max(0, Math.floor(g * 0.8));
-        const darkB = Math.max(0, Math.floor(b * 0.8));
-        root.style.setProperty('--color-primary-dark', `rgb(${darkR}, ${darkG}, ${darkB})`);
-    }
-    
-    // 應用按鈕顏色（與主色調相同）
-    if (customTheme.buttonColor) {
-        root.style.setProperty('--color-primary', customTheme.buttonColor);
-    }
-
-    const effectivePrimaryColor = customTheme.buttonColor || customTheme.primaryColor;
-    if (effectivePrimaryColor) {
-        const parseRgb = (color) => {
-            const c = String(color || '').trim();
-            if (/^#?[0-9a-fA-F]{6}$/.test(c)) {
-                const hex = c.replace('#', '');
-                return {
-                    r: parseInt(hex.slice(0, 2), 16),
-                    g: parseInt(hex.slice(2, 4), 16),
-                    b: parseInt(hex.slice(4, 6), 16)
-                };
-            }
-            const m = c.match(/rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
-            if (m) {
-                return {
-                    r: Math.min(255, Math.max(0, parseInt(m[1], 10))),
-                    g: Math.min(255, Math.max(0, parseInt(m[2], 10))),
-                    b: Math.min(255, Math.max(0, parseInt(m[3], 10)))
-                };
-            }
-            return null;
-        };
-
-        const base = parseRgb(effectivePrimaryColor);
-        if (base) {
-            const { r, g, b } = base;
-
-            root.style.setProperty('--color-primary', effectivePrimaryColor);
-            root.style.setProperty('--border-primary', effectivePrimaryColor);
-
-            const lightR = Math.min(255, Math.floor(r + (255 - r) * 0.3));
-            const lightG = Math.min(255, Math.floor(g + (255 - g) * 0.3));
-            const lightB = Math.min(255, Math.floor(b + (255 - b) * 0.3));
-            root.style.setProperty('--color-primary-light', `rgb(${lightR}, ${lightG}, ${lightB})`);
-
-            const lighterR = Math.min(255, Math.floor(r + (255 - r) * 0.5));
-            const lighterG = Math.min(255, Math.floor(g + (255 - g) * 0.5));
-            const lighterB = Math.min(255, Math.floor(b + (255 - b) * 0.5));
-            root.style.setProperty('--color-primary-lighter', `rgb(${lighterR}, ${lighterG}, ${lighterB})`);
-
-            const darkR = Math.max(0, Math.floor(r * 0.8));
-            const darkG = Math.max(0, Math.floor(g * 0.8));
-            const darkB = Math.max(0, Math.floor(b * 0.8));
-            root.style.setProperty('--color-primary-dark', `rgb(${darkR}, ${darkG}, ${darkB})`);
-
-            const setAlpha = (suffix, alpha) => {
-                root.style.setProperty(`--color-primary-rgba-${suffix}`, `rgba(${r}, ${g}, ${b}, ${alpha})`);
-            };
-            setAlpha('08', '0.08');
-            setAlpha('10', '0.1');
-            setAlpha('12', '0.12');
-            setAlpha('15', '0.15');
-            setAlpha('18', '0.18');
-            setAlpha('20', '0.2');
-            setAlpha('25', '0.25');
-            setAlpha('30', '0.3');
-
-            const setLightAlpha = (suffix, alpha) => {
-                root.style.setProperty(`--color-primary-light-rgba-${suffix}`, `rgba(${lightR}, ${lightG}, ${lightB}, ${alpha})`);
-            };
-            setLightAlpha('08', '0.08');
-            setLightAlpha('10', '0.1');
-            setLightAlpha('15', '0.15');
-            setLightAlpha('20', '0.2');
-            setLightAlpha('25', '0.25');
-        }
-    }
-    
-    // 應用框的背景顏色
-    if (customTheme.boxColor) {
-        root.style.setProperty('--bg-white', customTheme.boxColor);
-    }
-    
-    // 應用背景顏色
-    if (customTheme.backgroundColor) {
-        root.style.setProperty('--bg-primary', customTheme.backgroundColor);
-        // 如果背景顏色不是漸層，直接設置
-        if (!customTheme.backgroundColor.includes('gradient')) {
-            document.body.style.background = customTheme.backgroundColor;
-        } else {
-            document.body.style.background = customTheme.backgroundColor;
-        }
-    }
-    
-    // 圖表顏色將在生成圖表時使用（已在 generateColors 函數中處理）
-    
-    // 應用背景圖片
-    if (customTheme.backgroundImage) {
-        // 如果有背景圖片，使用圖片覆蓋背景顏色
-        document.body.style.backgroundImage = `url(${customTheme.backgroundImage})`;
-        document.body.style.backgroundSize = 'cover';
-        document.body.style.backgroundPosition = 'center';
-        document.body.style.backgroundRepeat = 'no-repeat';
-    } else {
-        document.body.style.backgroundImage = '';
-        document.body.style.backgroundSize = '';
-        document.body.style.backgroundPosition = '';
-        document.body.style.backgroundRepeat = '';
-    }
-}
-
-function showThemeSelector() {
-    const modal = document.createElement('div');
-    modal.className = 'theme-select-modal';
-    
-    const currentTheme = getCurrentTheme();
-    const customTheme = getCustomTheme();
-    
-    // 預設顏色值
-    const defaultColors = {
-        primaryColor: customTheme.primaryColor || '#ff69b4',
-        buttonColor: customTheme.buttonColor || '#ff69b4',
-        boxColor: customTheme.boxColor || '#ffffff',
-        backgroundColor: customTheme.backgroundColor || 'linear-gradient(135deg, #ffeef5 0%, #fff5f9 100%)',
-        chartColor1: customTheme.chartColors?.[0] || '#ff69b4',
-        chartColor2: customTheme.chartColors?.[1] || '#ffb6d9',
-        chartColor3: customTheme.chartColors?.[2] || '#ffc0cb',
-        chartColor4: customTheme.chartColors?.[3] || '#ff1493',
-        chartColor5: customTheme.chartColors?.[4] || '#db7093'
-    };
-
-    modal.innerHTML = `
-        <div class="theme-custom-content modal-content-standard">
-            <div class="theme-modal-header">
-                <div class="theme-modal-title">🎨 主題</div>
-                <button class="theme-close-btn" type="button" aria-label="Close">✕</button>
-            </div>
-
-            <div class="theme-section">
-                <div class="theme-section-title">主題</div>
-                <div class="theme-toolbar">
-                    <input id="themeSearchInput" class="theme-search-input" type="text" placeholder="搜尋主題..." autocomplete="off" />
-                </div>
-                <div id="themeGrid" class="theme-grid theme-grid--auto"></div>
-            </div>
-
-            <div class="theme-section theme-section--divider">
-                <div class="theme-section-title">自訂顏色</div>
-
-                <div class="theme-form">
-                    <div class="theme-field">
-                        <label class="theme-label">主色調（按鈕、邊框）</label>
-                        <div class="theme-field-row">
-                            <input type="color" id="primaryColorPicker" value="${defaultColors.primaryColor}" class="theme-color-picker">
-                            <input type="text" id="primaryColorText" value="${defaultColors.primaryColor}" class="theme-text-input">
-                        </div>
-                    </div>
-
-                    <div class="theme-field">
-                        <label class="theme-label">框的背景顏色</label>
-                        <div class="theme-field-row">
-                            <input type="color" id="boxColorPicker" value="${defaultColors.boxColor}" class="theme-color-picker">
-                            <input type="text" id="boxColorText" value="${defaultColors.boxColor}" class="theme-text-input">
-                        </div>
-                    </div>
-
-                    <div class="theme-field">
-                        <label class="theme-label">背景顏色</label>
-                        <div class="theme-field-row">
-                            <input type="color" id="backgroundColorPicker" value="#ffeef5" class="theme-color-picker">
-                            <input type="text" id="backgroundColorText" value="${defaultColors.backgroundColor}" placeholder="例如: #ffeef5 或 linear-gradient(...)" class="theme-text-input">
-                        </div>
-                        <div class="theme-help">支援顏色代碼或漸層（linear-gradient）</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="theme-section theme-section--divider">
-                <div class="theme-section-title">圖表顏色</div>
-                <div class="theme-form">
-                    ${[1, 2, 3, 4, 5].map(i => `
-                        <div class="theme-field">
-                            <label class="theme-label">圖表顏色 ${i}</label>
-                            <div class="theme-field-row">
-                                <input type="color" id="chartColor${i}Picker" value="${defaultColors[`chartColor${i}`]}" class="theme-color-picker">
-                                <input type="text" id="chartColor${i}Text" value="${defaultColors[`chartColor${i}`]}" class="theme-text-input">
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-
-            <div class="theme-section theme-section--divider">
-                <div class="theme-section-title">背景圖片</div>
-                <input type="file" id="backgroundImageInput" accept="image/*" style="display: none;">
-                <button id="uploadImageBtn" class="theme-primary-btn" type="button">📷 上傳背景圖片</button>
-                ${customTheme.backgroundImage ? `
-                    <div id="imagePreviewContainer" class="theme-image-preview">
-                        <img src="${customTheme.backgroundImage}" alt="背景預覽" class="theme-image-preview-img">
-                        <button id="removeImageBtn" class="theme-image-remove-btn" type="button">✕</button>
-                    </div>
-                ` : '<div id="imagePreviewContainer"></div>'}
-            </div>
-
-            <div class="theme-actions">
-                <button id="resetThemeBtn" class="theme-secondary-btn" type="button">重置</button>
-                <button id="saveThemeBtn" class="theme-primary-btn" type="button">儲存設定</button>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-
-    const renderThemeGrid = (query = '') => {
-        const q = (query || '').trim().toLowerCase();
-        const grid = document.getElementById('themeGrid');
-        if (!grid) return;
-
-        const list = themes.filter(t => {
-            if (!q) return true;
-            return (t.name || '').toLowerCase().includes(q) || (t.id || '').toLowerCase().includes(q);
-        });
-
-        grid.innerHTML = list.map(theme => {
-            const isSelected = theme.id === currentTheme && !customTheme.primaryColor;
-            return `
-                <div class="theme-item ${isSelected ? 'selected' : ''}" data-theme-id="${theme.id}">
-                    <div class="theme-item-preview" style="background: ${theme.preview};"></div>
-                    <div class="theme-item-content theme-item-content--compact">
-                        <div class="theme-item-icon">${theme.icon}</div>
-                        <div class="theme-item-name">${theme.name}</div>
-                        ${isSelected ? '<div class="theme-item-check">✓</div>' : '<div class="theme-item-check theme-item-check--placeholder"></div>'}
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-        grid.querySelectorAll('.theme-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const themeId = item.dataset.themeId;
-                applyTheme(themeId);
-                saveCustomTheme({});
-                applyCustomTheme();
-
-                grid.querySelectorAll('.theme-item').forEach(t => t.classList.remove('selected'));
-                item.classList.add('selected');
-
-                setTimeout(() => {
-                    if (document.body.contains(modal)) {
-                        document.body.removeChild(modal);
-                    }
-                    alert('主題已切換！');
-                }, 300);
-            });
-        });
-    };
-
-    renderThemeGrid('');
-
-    const themeSearchInput = document.getElementById('themeSearchInput');
-    if (themeSearchInput) {
-        themeSearchInput.addEventListener('input', (e) => {
-            renderThemeGrid(e.target.value);
-        });
-    }
-    
-    // 綁定顏色選擇器同步
-    const colorInputs = [
-        { picker: 'primaryColorPicker', text: 'primaryColorText' },
-        { picker: 'boxColorPicker', text: 'boxColorText' },
-        { picker: 'backgroundColorPicker', text: 'backgroundColorText' },
-        ...Array.from({length: 5}, (_, i) => ({ picker: `chartColor${i+1}Picker`, text: `chartColor${i+1}Text` }))
-    ];
-    
-    colorInputs.forEach(({picker, text}) => {
-        const pickerEl = document.getElementById(picker);
-        const textEl = document.getElementById(text);
-        if (pickerEl && textEl) {
-            pickerEl.addEventListener('input', (e) => {
-                textEl.value = e.target.value;
-            });
-            textEl.addEventListener('input', (e) => {
-                if (e.target.value.match(/^#[0-9A-Fa-f]{6}$/)) {
-                    pickerEl.value = e.target.value;
-                }
-            });
-        }
-    });
-    
-    // 綁定圖片上傳
-    const uploadBtn = document.getElementById('uploadImageBtn');
-    const imageInput = document.getElementById('backgroundImageInput');
-    const removeImageBtn = document.getElementById('removeImageBtn');
-    
-    if (uploadBtn && imageInput) {
-        uploadBtn.addEventListener('click', () => imageInput.click());
-        imageInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const imageUrl = event.target.result;
-                    const previewContainer = document.getElementById('imagePreviewContainer');
-                    previewContainer.innerHTML = `
-                        <img src="${imageUrl}" alt="背景預覽" style="width: 100%; max-height: 200px; object-fit: cover; border-radius: 8px;">
-                        <button id="removeImageBtn" style="position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; font-size: 18px;">✕</button>
-                    `;
-                    previewContainer.style.position = 'relative';
-                    previewContainer.style.marginTop = '12px';
-                    
-                    // 重新綁定移除按鈕
-                    const newRemoveBtn = document.getElementById('removeImageBtn');
-                    if (newRemoveBtn) {
-                        newRemoveBtn.addEventListener('click', () => {
-                            imageInput.value = '';
-                            previewContainer.innerHTML = '';
-                            previewContainer.style.marginTop = '0';
-                        });
-                    }
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-    }
-    
-    if (removeImageBtn) {
-        removeImageBtn.addEventListener('click', () => {
-            imageInput.value = '';
-            const previewContainer = document.getElementById('imagePreviewContainer');
-            previewContainer.innerHTML = '';
-            previewContainer.style.marginTop = '0';
-        });
-    }
-    
-    // 綁定儲存按鈕
-    const saveBtn = document.getElementById('saveThemeBtn');
-    if (saveBtn) {
-        saveBtn.addEventListener('click', () => {
-            playClickSound(); // 播放點擊音效
-            const theme = {
-                primaryColor: document.getElementById('primaryColorText').value,
-                buttonColor: document.getElementById('primaryColorText').value,
-                boxColor: document.getElementById('boxColorText').value,
-                backgroundColor: document.getElementById('backgroundColorText').value,
-                chartColors: [
-                    document.getElementById('chartColor1Text').value,
-                    document.getElementById('chartColor2Text').value,
-                    document.getElementById('chartColor3Text').value,
-                    document.getElementById('chartColor4Text').value,
-                    document.getElementById('chartColor5Text').value
-                ]
-            };
-            
-            // 處理背景圖片
-            const imagePreview = document.querySelector('#imagePreviewContainer img');
-            if (imagePreview) {
-                theme.backgroundImage = imagePreview.src;
-            }
-            
-            saveCustomTheme(theme);
-            applyCustomTheme();
-            
-            // 更新圖表（如果圖表已存在）
-            if (typeof updateAllCharts === 'function') {
-                updateAllCharts();
-            }
-            
-            alert('主題設定已儲存！');
-            if (document.body.contains(modal)) {
-                document.body.removeChild(modal);
-            }
-        });
-    }
-    
-    // 綁定重置按鈕
-    const resetBtn = document.getElementById('resetThemeBtn');
-    if (resetBtn) {
-        resetBtn.addEventListener('click', () => {
-            if (confirm('確定要重置所有自訂設定嗎？')) {
-                saveCustomTheme({});
-                applyTheme('pink');
-                applyCustomTheme();
-                if (document.body.contains(modal)) {
-                    document.body.removeChild(modal);
-                }
-                showThemeSelector(); // 重新打開
-            }
-        });
-    }
-    
-    // 綁定關閉按鈕
-    const closeBtn = modal.querySelector('.theme-close-btn');
-    if (closeBtn) {
-        closeBtn.addEventListener('click', () => {
-            if (document.body.contains(modal)) {
-                document.body.removeChild(modal);
-            }
-        });
-    }
-    
-    // 點擊遮罩關閉
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            if (document.body.contains(modal)) {
-                document.body.removeChild(modal);
-            }
-        }
-    });
-}
-
-// 頁面載入時應用保存的主題
-function initTheme() {
-    const savedTheme = getCurrentTheme();
-    applyTheme(savedTheme);
-    // 應用自訂主題（會覆蓋預設主題的某些設定）
-    applyCustomTheme();
-    // 確保按鈕圖標也被更新（延遲執行以確保DOM已載入）
-    setTimeout(() => {
-        updateThemeButtons(savedTheme);
-        // 如果是櫻花主題，確保動畫已創建並更新所有按鈕
-        if (savedTheme === 'sakura') {
-            createSakuraPetals();
-            updateSakuraButtons();
-        }
-    }, 100);
 }
 
 // 應用字體大小
@@ -16596,9 +14633,6 @@ document.addEventListener('DOMContentLoaded', () => {
         checkAndExecuteDCAPlans();
     }
     
-    // 應用保存的主題
-    initTheme();
-    
     // 應用保存的字體大小
     initFontSize();
     
@@ -16624,6 +14658,15 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 初始化下月計入選項
     initNextMonthOption();
+    
+    // 初始化主題系統
+    if (typeof getCurrentTheme === 'function' && typeof applyTheme === 'function') {
+        const savedTheme = getCurrentTheme();
+        applyTheme(savedTheme);
+        console.log('✅ 主題系統已初始化，當前主題:', savedTheme);
+    } else {
+        console.warn('⚠️ 主題系統函數未找到');
+    }
     
     // 防止所有輸入框focus時自動滾動（手機適配，防止數字鍵盤移位）
     setTimeout(() => {
@@ -16668,13 +14711,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // 初始化圖片裁切對話框
-    if (typeof initImageCropModal === 'function') {
-        initImageCropModal();
-    }
-    
     // 初始化底部導航
     initBottomNav();
+
+    // 初始化記帳日記詳情對話框
+    initEntryDetailModal();
 
     initMonthSwitchers();
 
@@ -16701,7 +14742,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         // 檢查超支原因提示
         if (typeof checkOverspendReasonDialog === 'function') {
-            checkOverspendReasonDialog(allRecords);
+            checkOverspendReasonDialog();
         }
         // 檢查記帳中斷提醒
         if (typeof checkStreakBreakReminder === 'function') {
@@ -16743,6 +14784,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (settingsBackBtn) {
         settingsBackBtn.addEventListener('click', () => {
             goBackToLedger();
+        });
+    }
+    
+    // 初始化智慧提醒按鈕
+    const smartRemindersBtn = document.getElementById('smartRemindersBtn');
+    if (smartRemindersBtn) {
+        smartRemindersBtn.addEventListener('click', () => {
+            if (window.smartReminderSystem && typeof window.smartReminderSystem.showReminderPanel === 'function') {
+                window.smartReminderSystem.showReminderPanel();
+            } else {
+                console.warn('智慧提醒系統未載入');
+                alert('智慧提醒系統正在載入中，請稍後再試...');
+            }
         });
     }
     
@@ -17044,11 +15098,73 @@ document.addEventListener('DOMContentLoaded', () => {
     const imagePreview = document.getElementById('imagePreview');
     const previewImage = document.getElementById('previewImage');
     const removeImageBtn = document.getElementById('removeImageBtn');
+    const imageGallery = document.getElementById('imageGallery');
+    const imageCount = document.getElementById('imageCount');
     const imageInput = document.createElement('input');
     imageInput.type = 'file';
     imageInput.accept = 'image/*';
     imageInput.style.display = 'none';
+    imageInput.multiple = true; // 允許選擇多個檔案
     document.body.appendChild(imageInput);
+    
+    // 更新圖片庫顯示
+    function updateImageGallery() {
+        if (!imageGallery || !imageCount) return;
+        
+        const images = window.selectedReceiptImages || [];
+        imageCount.textContent = `已上傳 ${images.length} 張照片`;
+        
+        // 清空現有縮圖
+        imageGallery.innerHTML = '';
+        
+        // 添加縮圖
+        images.forEach((imageData, index) => {
+            const thumbnail = document.createElement('div');
+            thumbnail.className = 'image-thumbnail';
+            thumbnail.innerHTML = `
+                <img src="${imageData}" alt="照片 ${index + 1}" class="thumbnail-img">
+                <button class="thumbnail-remove" data-index="${index}">✕</button>
+            `;
+            
+            // 點擊縮圖顯示大圖
+            thumbnail.querySelector('.thumbnail-img').addEventListener('click', () => {
+                showReceiptImageModal(imageData);
+            });
+            
+            // 移除單張圖片
+            thumbnail.querySelector('.thumbnail-remove').addEventListener('click', (e) => {
+                e.stopPropagation();
+                removeImageAtIndex(index);
+            });
+            
+            imageGallery.appendChild(thumbnail);
+        });
+        
+        // 如果有圖片，顯示第一張作為主預覽
+        if (images.length > 0 && previewImage) {
+            previewImage.src = images[0];
+            
+            // 為主預覽圖片添加點擊放大功能
+            previewImage.addEventListener('click', () => {
+                showReceiptImageModal(images[0]);
+            });
+            previewImage.style.cursor = 'pointer';
+        }
+    }
+    
+    // 移除指定索引的圖片
+    function removeImageAtIndex(index) {
+        if (!window.selectedReceiptImages) return;
+        
+        window.selectedReceiptImages.splice(index, 1);
+        updateImageGallery();
+        
+        // 如果沒有圖片了，隱藏預覽
+        if (window.selectedReceiptImages.length === 0) {
+            if (imagePreview) imagePreview.style.display = 'none';
+            if (previewImage) previewImage.src = '';
+        }
+    }
     
     if (imageBtn) {
         imageBtn.addEventListener('click', () => {
@@ -17058,42 +15174,99 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 處理圖片選擇
     imageInput.addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            // 檢查文件大小（限制為 5MB）
-            if (file.size > 5 * 1024 * 1024) {
-                alert('圖片太大！請選擇小於 5MB 的圖片。');
+        const files = Array.from(e.target.files);
+        if (files.length > 0) {
+            // 初始化圖片陣列
+            if (!window.selectedReceiptImages) {
+                window.selectedReceiptImages = [];
+            }
+            
+            // 檢查總圖片數量限制
+            const totalImages = window.selectedReceiptImages.length + files.length;
+            if (totalImages > 10) {
+                alert(`最多只能上傳10張圖片！您已選擇 ${files.length} 張，加上現有的 ${window.selectedReceiptImages.length} 張，總共 ${totalImages} 張。`);
                 imageInput.value = '';
                 return;
             }
             
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                let imageData = event.target.result;
+            // 計算預估總大小
+            let estimatedTotalSize = 0;
+            window.selectedReceiptImages.forEach(img => {
+                estimatedTotalSize += img.length;
+            });
+            
+            // 預估新圖片大小（假設壓縮後平均每張200KB）
+            estimatedTotalSize += files.length * 200000;
+            
+            // 如果預估總大小太大，給出警告
+            if (estimatedTotalSize > 2000000) { // 2MB
+                if (!confirm(`預估總圖片大小較大（約${Math.round(estimatedTotalSize/1024/1024)}MB），可能影響儲存效能。\n\n建議減少照片數量或壓縮照片。\n\n是否繼續上傳？`)) {
+                    imageInput.value = '';
+                    return;
+                }
+            }
+            
+            // 處理每個檔案
+            for (const file of files) {
+                // 檢查文件大小（限制為 5MB）
+                if (file.size > 5 * 1024 * 1024) {
+                    alert(`圖片 ${file.name} 太大！請選擇小於 5MB 的圖片。`);
+                    continue;
+                }
                 
-                // 壓縮圖片（使用 storage.js 中的壓縮函數）
-                if (typeof compressImage === 'function') {
-                    try {
-                        imageData = await compressImage(imageData, 800, 800, 0.7);
-                        console.log('圖片已壓縮');
-                    } catch (error) {
-                        console.error('圖片壓縮失敗:', error);
-                        // 如果壓縮失敗，使用原始圖片
+                try {
+                    const imageData = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (event) => resolve(event.target.result);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                    });
+                    
+                    let processedImageData = imageData;
+                    
+                    // 壓縮圖片（使用 storage.js 中的壓縮函數）
+                    if (typeof compressImage === 'function') {
+                        try {
+                            processedImageData = await compressImage(imageData, 800, 800, 0.7);
+                            console.log('圖片已壓縮');
+                        } catch (error) {
+                            console.error('圖片壓縮失敗:', error);
+                            // 如果壓縮失敗，使用原始圖片
+                            processedImageData = imageData;
+                        }
                     }
+                    
+                    // 添加到圖片陣列
+                    window.selectedReceiptImages.push(processedImageData);
+                    
+                    // 檢查單張圖片大小
+                    const imageSize = processedImageData.length;
+                    console.log(`圖片 ${file.name} 處理後大小: ${imageSize} 字符`);
+                    
+                    // 如果單張圖片太大，給出警告
+                    if (imageSize > 500000) { // 500KB
+                        console.warn(`圖片 ${file.name} 較大: ${imageSize} 字符`);
+                    }
+                    
+                } catch (error) {
+                    console.error('處理圖片失敗:', error);
+                    alert(`處理圖片 ${file.name} 時發生錯誤`);
                 }
-                
-                // 保存到全局變量
-                window.selectedReceiptImage = imageData;
-                
-                if (previewImage) {
-                    previewImage.src = imageData;
-                }
-                if (imagePreview) {
-                    imagePreview.style.display = 'block';
-                }
-            };
-            reader.readAsDataURL(file);
+            }
+            
+            // 更新圖片庫顯示
+            updateImageGallery();
+            
+            // 顯示圖片預覽區域
+            if (imagePreview) {
+                imagePreview.style.display = 'block';
+            }
+            
+            console.log(`已上傳 ${window.selectedReceiptImages.length} 張圖片`);
         }
+        
+        // 清空檔案輸入
+        imageInput.value = '';
     });
     
     // 移除圖片按鈕
@@ -17106,10 +15279,401 @@ document.addEventListener('DOMContentLoaded', () => {
                 imagePreview.style.display = 'none';
             }
             imageInput.value = '';
-            window.selectedReceiptImage = null;
+            window.selectedReceiptImages = [];
+            updateImageGallery();
+            console.log('已清除所有圖片');
         });
     }
 });
+
+// ========== 記帳日記詳情功能 ==========
+
+let currentEntryDetailRecord = null;
+
+// 初始化記帳日記詳情對話框
+function initEntryDetailModal() {
+    const entryDetailModal = document.getElementById('entryDetailModal');
+    const entryDetailBackBtn = document.getElementById('entryDetailBackBtn');
+    const entryDetailClose = document.getElementById('entryDetailClose');
+    
+    // 關閉對話框
+    function closeEntryDetailModal() {
+        if (entryDetailModal) {
+            entryDetailModal.style.display = 'none';
+        }
+    }
+    
+    if (entryDetailBackBtn) {
+        entryDetailBackBtn.addEventListener('click', closeEntryDetailModal);
+    }
+    
+    if (entryDetailClose) {
+        entryDetailClose.addEventListener('click', closeEntryDetailModal);
+    }
+    
+    // 點擊遮罩關閉
+    const modalOverlay = entryDetailModal?.querySelector('.modal-overlay');
+    if (modalOverlay) {
+        modalOverlay.addEventListener('click', closeEntryDetailModal);
+    }
+
+    const editBtn = document.getElementById('entryDetailEditBtn');
+    const editSection = document.getElementById('entryDetailEditSection');
+    const typeSelect = document.getElementById('entryEditType');
+    const saveBtn = document.getElementById('entryEditSaveBtn');
+    const cancelBtn = document.getElementById('entryEditCancelBtn');
+
+    if (editBtn && editSection) {
+        editBtn.addEventListener('click', () => {
+            if (!currentEntryDetailRecord) return;
+            const isVisible = editSection.style.display === 'block';
+            if (isVisible) {
+                hideEntryEditSection();
+            } else {
+                populateEntryEditForm(currentEntryDetailRecord);
+                editSection.style.display = 'block';
+                editBtn.classList.add('is-active');
+            }
+        });
+    }
+
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', hideEntryEditSection);
+    }
+
+    if (typeSelect) {
+        typeSelect.addEventListener('change', () => {
+            refreshEntryEditCategoryOptions(typeSelect.value, '');
+        });
+    }
+
+    if (saveBtn) {
+        saveBtn.addEventListener('click', handleEntryEditSave);
+    }
+}
+
+// 顯示記帳日記詳情
+function showEntryDetail(record) {
+    const entryDetailModal = document.getElementById('entryDetailModal');
+    const entryDetailCategory = document.getElementById('entryDetailCategory');
+    const entryDetailAmount = document.getElementById('entryDetailAmount');
+    const entryDetailDate = document.getElementById('entryDetailDate');
+    const entryDetailNote = document.getElementById('entryDetailNote');
+    const entryDetailGallery = document.getElementById('entryDetailGallery');
+    
+    if (!entryDetailModal) return;
+    
+    currentEntryDetailRecord = record ? { ...record } : null;
+
+    // 顯示前先重置編輯區塊
+    hideEntryEditSection();
+    const editBtn = document.getElementById('entryDetailEditBtn');
+    if (editBtn) {
+        if (record) {
+            editBtn.style.display = 'inline-flex';
+            editBtn.classList.remove('is-active');
+        } else {
+            editBtn.style.display = 'none';
+        }
+    }
+
+    // 設置基本資訊
+    if (entryDetailCategory) {
+        entryDetailCategory.textContent = record.category || '未分類';
+    }
+    
+    if (entryDetailAmount) {
+        const isExpense = record.type === 'expense' || !record.type;
+        const isTransfer = record.type === 'transfer';
+        const amountClass = isExpense ? 'expense' : isTransfer ? 'transfer' : 'income';
+        entryDetailAmount.className = `entry-detail-amount ${amountClass}`;
+        entryDetailAmount.textContent = `${isTransfer ? '' : isExpense ? '-' : '+'}NT$${(record.amount || 0).toLocaleString('zh-TW')}`;
+    }
+    
+    if (entryDetailDate) {
+        const date = new Date(record.date);
+        const dateStr = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+        entryDetailDate.textContent = dateStr;
+    }
+    
+    if (entryDetailNote) {
+        entryDetailNote.textContent = record.note || '';
+        entryDetailNote.style.display = record.note ? 'block' : 'none';
+    }
+    
+    // 設置圖片庫
+    if (entryDetailGallery) {
+        entryDetailGallery.innerHTML = '';
+        
+        let images = [];
+        if (record.receiptImages && record.receiptImages.length > 0) {
+            images = record.receiptImages;
+        } else if (record.receiptImage) {
+            images = [record.receiptImage];
+        }
+        
+        if (images.length > 0) {
+            images.forEach((imageData, index) => {
+                const img = document.createElement('img');
+                img.src = imageData;
+                img.alt = `照片 ${index + 1}`;
+                img.addEventListener('click', () => {
+                    // 點擊圖片可以放大查看
+                    showReceiptImageModal(imageData);
+                });
+                entryDetailGallery.appendChild(img);
+            });
+        } else {
+            entryDetailGallery.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">沒有照片記錄</p>';
+        }
+    }
+    
+    // 顯示對話框
+    entryDetailModal.style.display = 'flex';
+}
+
+function hideEntryEditSection() {
+    const editSection = document.getElementById('entryDetailEditSection');
+    const editBtn = document.getElementById('entryDetailEditBtn');
+    if (editSection) {
+        editSection.style.display = 'none';
+    }
+    if (editBtn) {
+        editBtn.classList.remove('is-active');
+    }
+}
+
+function populateEntryEditForm(record) {
+    if (!record) return;
+    const typeSelect = document.getElementById('entryEditType');
+    const categorySelect = document.getElementById('entryEditCategory');
+    const amountInput = document.getElementById('entryEditAmount');
+    const dateInput = document.getElementById('entryEditDate');
+    const accountSelect = document.getElementById('entryEditAccount');
+    const memberSelect = document.getElementById('entryEditMember');
+    const noteInput = document.getElementById('entryEditNote');
+
+    const type = record.type || 'expense';
+    if (typeSelect) {
+        typeSelect.value = type;
+    }
+    refreshEntryEditCategoryOptions(type, record.category || '');
+
+    if (amountInput) {
+        amountInput.value = typeof record.amount === 'number' ? record.amount : (record.amount || 0);
+    }
+
+    if (dateInput) {
+        dateInput.value = record.date ? record.date.substring(0, 10) : '';
+    }
+
+    fillEntryEditAccountOptions(record);
+    fillEntryEditMemberOptions(record.member || '');
+
+    if (noteInput) {
+        noteInput.value = record.note || '';
+    }
+}
+
+function refreshEntryEditCategoryOptions(type, selectedCategory) {
+    const categorySelect = document.getElementById('entryEditCategory');
+    if (!categorySelect) return;
+
+    const categoriesSource = typeof getEnabledCategories === 'function'
+        ? getEnabledCategories(type)
+        : (Array.isArray(window.allCategories) ? window.allCategories.filter(cat => !type || cat.type === type) : []);
+
+    categorySelect.innerHTML = categoriesSource.length
+        ? '<option value="">請選擇分類</option>'
+        : '<option value="">沒有可用的分類</option>';
+
+    categoriesSource.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat.name;
+        option.textContent = `${cat.icon || '📦'} ${cat.name}`;
+        if (cat.name === selectedCategory) {
+            option.selected = true;
+        }
+        categorySelect.appendChild(option);
+    });
+
+    if (selectedCategory && !categoriesSource.some(cat => cat.name === selectedCategory) && categorySelect.firstChild) {
+        categorySelect.firstChild.selected = true;
+    }
+}
+
+function fillEntryEditAccountOptions(record) {
+    const accountSelect = document.getElementById('entryEditAccount');
+    if (!accountSelect) return;
+
+    const accounts = typeof getAccounts === 'function' ? getAccounts() : [];
+    const selectedAccountId = record.account || record.fromAccount || '';
+
+    let optionsHtml = '<option value="">（無指定帳戶）</option>';
+    accounts.forEach(account => {
+        optionsHtml += `<option value="${account.id}">${account.name || account.id}</option>`;
+    });
+    accountSelect.innerHTML = optionsHtml;
+    accountSelect.value = selectedAccountId || '';
+}
+
+function fillEntryEditMemberOptions(selectedName) {
+    const memberSelect = document.getElementById('entryEditMember');
+    if (!memberSelect) return;
+
+    const members = typeof getMembers === 'function' ? getMembers() : [];
+    let optionsHtml = '<option value="">（無成員）</option>';
+    members.forEach(member => {
+        optionsHtml += `<option value="${member.name}">${member.icon || '👤'} ${member.name}</option>`;
+    });
+    memberSelect.innerHTML = optionsHtml;
+    memberSelect.value = selectedName || '';
+}
+
+function handleEntryEditSave() {
+    if (!currentEntryDetailRecord) return;
+
+    const typeSelect = document.getElementById('entryEditType');
+    const categorySelect = document.getElementById('entryEditCategory');
+    const amountInput = document.getElementById('entryEditAmount');
+    const dateInput = document.getElementById('entryEditDate');
+    const accountSelect = document.getElementById('entryEditAccount');
+    const memberSelect = document.getElementById('entryEditMember');
+    const noteInput = document.getElementById('entryEditNote');
+
+    const type = typeSelect?.value || currentEntryDetailRecord.type || 'expense';
+    const category = categorySelect?.value || '';
+    const amountValue = parseFloat(amountInput?.value || '0');
+    const date = dateInput?.value || currentEntryDetailRecord.date;
+    const accountId = accountSelect?.value || '';
+    const memberName = memberSelect?.value || '';
+    const note = noteInput?.value.trim() || '';
+
+    if (!category) {
+        alert('請選擇分類');
+        return;
+    }
+
+    if (!amountValue || amountValue <= 0) {
+        alert('金額必須大於 0');
+        return;
+    }
+
+    if (!date) {
+        alert('請選擇日期');
+        return;
+    }
+
+    let records = [];
+    try {
+        records = JSON.parse(localStorage.getItem('accountingRecords') || '[]');
+    } catch (error) {
+        console.error('無法解析記帳記錄：', error);
+        alert('讀取記帳記錄時發生錯誤');
+        return;
+    }
+
+    let recordIndex = -1;
+    if (currentEntryDetailRecord.timestamp) {
+        recordIndex = records.findIndex(r => r?.timestamp === currentEntryDetailRecord.timestamp);
+    }
+    if (recordIndex === -1) {
+        recordIndex = records.findIndex(r =>
+            !currentEntryDetailRecord.timestamp &&
+            !r.timestamp &&
+            r.date === currentEntryDetailRecord.date &&
+            (r.amount || 0) === (currentEntryDetailRecord.amount || 0) &&
+            (r.category || '') === (currentEntryDetailRecord.category || '')
+        );
+    }
+
+    if (recordIndex === -1) {
+        alert('找不到原始紀錄，可能已被刪除');
+        return;
+    }
+
+    const targetRecord = records[recordIndex] || {};
+    const normalizedAmount = Math.round(amountValue * 100) / 100;
+
+    const updatedRecord = {
+        ...targetRecord,
+        type,
+        category,
+        amount: normalizedAmount,
+        date,
+        note,
+        member: memberName || ''
+    };
+
+    if (type === 'transfer') {
+        updatedRecord.fromAccount = accountId || targetRecord.fromAccount || targetRecord.account || '';
+        updatedRecord.account = updatedRecord.fromAccount;
+    } else {
+        updatedRecord.account = accountId || '';
+        delete updatedRecord.fromAccount;
+        delete updatedRecord.toAccount;
+    }
+
+    records[recordIndex] = updatedRecord;
+    localStorage.setItem('accountingRecords', JSON.stringify(records));
+
+    currentEntryDetailRecord = { ...updatedRecord };
+    showEntryDetail(updatedRecord);
+    if (typeof initLedger === 'function') {
+        initLedger();
+    } else if (typeof updateLedgerSummary === 'function') {
+        updateLedgerSummary(records);
+    }
+
+    alert('紀錄已更新');
+}
+
+// 添加點擊事件監聽器到交易項目
+function addTransactionClickHandlers() {
+    const transactionItems = document.querySelectorAll('.transaction-item');
+    
+    transactionItems.forEach(item => {
+        // 移除舊的事件監聽器
+        item.removeEventListener('click', handleTransactionClick);
+        // 添加新的事件監聽器
+        item.addEventListener('click', handleTransactionClick);
+    });
+}
+
+// 處理交易項目點擊
+function handleTransactionClick(e) {
+    // 如果點擊的是刪除按鈕，不觸發詳情對話框
+    if (e.target.classList.contains('transaction-delete-btn')) {
+        return;
+    }
+    
+    // 如果點擊的是圖片，不觸發詳情對話框（圖片有自己的處理邏輯）
+    if (e.target.classList.contains('receipt-thumbnail') || e.target.classList.contains('receipt-thumbnail-small')) {
+        return;
+    }
+    
+    // 獲取記錄資訊
+    const item = e.currentTarget;
+    const timestamp = item.querySelector('.transaction-delete-btn')?.dataset.recordTimestamp;
+    const date = item.querySelector('.transaction-delete-btn')?.dataset.recordDate;
+    const amount = parseInt(item.querySelector('.transaction-delete-btn')?.dataset.recordAmount || '0');
+    const category = item.querySelector('.transaction-delete-btn')?.dataset.recordCategory || '';
+    
+    if (!date || !amount) return;
+    
+    // 從 localStorage 獲取完整記錄
+    const records = JSON.parse(localStorage.getItem('accountingRecords') || '[]');
+    const record = records.find(r => 
+        r.date === date && 
+        r.amount === amount && 
+        (r.category || '') === category &&
+        (timestamp ? r.timestamp === timestamp : true)
+    );
+    
+    if (record) {
+        showEntryDetail(record);
+    }
+}
 
 // ========== 新投資專區UI功能 ==========
 
@@ -18074,6 +16638,30 @@ function deleteInvestmentRecord(recordId) {
     records.splice(recordIndex, 1);
     }
     
+    // 如果刪除的是定期定額記錄，減少該計劃的執行次數
+    if (record.isDCA && record.dcaPlanId) {
+        try {
+            const dcaPlans = JSON.parse(localStorage.getItem('dcaPlans') || '[]');
+            const planIndex = dcaPlans.findIndex(p => p.id === record.dcaPlanId);
+            if (planIndex !== -1) {
+                const plan = dcaPlans[planIndex];
+                const currentCount = parseInt(plan.executedCount, 10) || 0;
+                if (currentCount > 0) {
+                    dcaPlans[planIndex].executedCount = currentCount - 1;
+                    localStorage.setItem('dcaPlans', JSON.stringify(dcaPlans));
+                    console.log(`定期定額計劃 ${plan.stockCode} 執行次數已減少為 ${currentCount - 1}`);
+                    
+                    // 更新定期定額列表顯示
+                    if (typeof updateDCAList === 'function') {
+                        updateDCAList();
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('更新定期定額執行次數失敗:', e);
+        }
+    }
+    
     // 保存到 localStorage
     try {
         // 先確保投資記錄一定能成功刪除與保存
@@ -18116,10 +16704,10 @@ function deleteInvestmentRecord(recordId) {
                 // 若記帳本頁面有開著，刷新顯示（避免刷新報錯導致整個刪除失敗）
                 try {
                     if (typeof updateLedgerSummary === 'function') {
-                        updateLedgerSummary();
+                        updateLedgerSummary(accountingRecords);
                     }
                     if (typeof displayLedgerTransactions === 'function') {
-                        displayLedgerTransactions();
+                        displayLedgerTransactions(accountingRecords);
                     }
                 } catch (e) {
                     console.warn('刷新記帳本顯示失敗（不影響刪除）:', e);
@@ -18820,21 +17408,21 @@ function showEditDividendRecordModal(record) {
         if (index !== -1) {
                 // 保留原始記錄的所有屬性，只更新修改的欄位
                 const updatedRecord = {
-                type: 'dividend',
-                stockCode: stockCode,
-                stockName: stockName,
-                date: date,
-                exDividendDate: exDividendDate,
-                dividendType: dividendType || 'cash',
-                perShare: perShare,
-                historicalPerShare: historicalPerShare,
-                shares: shares,
-                amount: amount,
-                fee: fee,
-                reinvest: reinvest,
-                note: note,
-                timestamp: new Date().toISOString()
-            };
+                    ...record,
+                    type: 'dividend',
+                    stockCode: stockCode,
+                    stockName: stockName,
+                    date: date,
+                    exDividendDate: exDividendDate,
+                    dividendType: dividendType || 'cash',
+                    perShare: perShare,
+                    historicalPerShare: historicalPerShare,
+                    shares: shares,
+                    amount: amount,
+                    fee: fee,
+                    reinvest: reinvest,
+                    note: note
+                };
                 
                 records[index] = updatedRecord;
 
@@ -18905,12 +17493,88 @@ function showEditDividendRecordModal(record) {
                                     if (linkedBuyIndexes.length > 1) {
                                         linkedBuyIndexes.slice(1).sort((a, b) => b - a).forEach(i => records.splice(i, 1));
                                     }
+                                    
+                                    // 創建或更新記帳本轉帳記錄
+                                    try {
+                                        let accountingRecords = JSON.parse(localStorage.getItem('accountingRecords') || '[]');
+                                        const transferIndex = accountingRecords.findIndex(ar => 
+                                            ar.linkedInvestment === true && 
+                                            ar.investmentRecordId === buyRecord.timestamp
+                                        );
+                                        
+                                        const transferRecord = {
+                                            type: 'transfer',
+                                            category: '股票再投入',
+                                            amount: amount,
+                                            note: `股利再投入：${stockCode} ${buyShares}股 @ NT$${buyPrice.toFixed(2)}`,
+                                            date: date,
+                                            fromAccount: '現金',
+                                            toAccount: '投資',
+                                            linkedInvestment: true,
+                                            investmentRecordId: buyRecord.timestamp,
+                                            timestamp: buyRecord.timestamp
+                                        };
+                                        
+                                        if (transferIndex !== -1) {
+                                            accountingRecords[transferIndex] = transferRecord;
+                                        } else {
+                                            accountingRecords.push(transferRecord);
+                                        }
+                                        
+                                        localStorage.setItem('accountingRecords', JSON.stringify(accountingRecords));
+                                        console.log('已更新股利再投入轉帳記錄');
+                                    } catch (e) {
+                                        console.warn('更新股利再投入轉帳記錄失敗:', e);
+                                    }
                                 } else {
                                     records.push(buyRecord);
+                                    
+                                    // 創建新的記帳本轉帳記錄
+                                    try {
+                                        let accountingRecords = JSON.parse(localStorage.getItem('accountingRecords') || '[]');
+                                        const transferRecord = {
+                                            type: 'transfer',
+                                            category: '股票再投入',
+                                            amount: amount,
+                                            note: `股利再投入：${stockCode} ${buyShares}股 @ NT$${buyPrice.toFixed(2)}`,
+                                            date: date,
+                                            fromAccount: '現金',
+                                            toAccount: '投資',
+                                            linkedInvestment: true,
+                                            investmentRecordId: buyRecord.timestamp,
+                                            timestamp: buyRecord.timestamp
+                                        };
+                                        accountingRecords.push(transferRecord);
+                                        localStorage.setItem('accountingRecords', JSON.stringify(accountingRecords));
+                                        console.log('已創建股利再投入轉帳記錄');
+                                    } catch (e) {
+                                        console.warn('創建股利再投入轉帳記錄失敗:', e);
+                                    }
                                 }
                             } else {
                                 // 金額不足以買入至少1股：刪除既有關聯買入記錄並提示
                                 if (linkedBuyIndexes.length > 0) {
+                                    // 刪除關聯的記帳本轉帳記錄
+                                    try {
+                                        const accountingRecords = JSON.parse(localStorage.getItem('accountingRecords') || '[]');
+                                        const deletedInvestmentIds = linkedBuyIndexes.map(i => {
+                                            const invRecord = records[i];
+                                            return invRecord ? (invRecord.timestamp || invRecord.id) : null;
+                                        }).filter(id => id !== null);
+                                        
+                                        if (deletedInvestmentIds.length > 0) {
+                                            accountingRecords = accountingRecords.filter(ar => {
+                                                if (!ar || ar.type !== 'transfer' || ar.linkedInvestment !== true) return true;
+                                                const invId = ar.investmentRecordId != null ? String(ar.investmentRecordId) : '';
+                                                return !deletedInvestmentIds.includes(invId);
+                                            });
+                                            localStorage.setItem('accountingRecords', JSON.stringify(accountingRecords));
+                                            console.log('已刪除關聯的股利再投入轉帳記錄');
+                                        }
+                                    } catch (e) {
+                                        console.warn('刪除股利再投入轉帳記錄失敗:', e);
+                                    }
+                                    
                                     linkedBuyIndexes.sort((a, b) => b - a).forEach(i => records.splice(i, 1));
                                 }
                                 alert(`⚠️ 股利再投入金額不足\n\n股利金額：NT$${amount.toLocaleString('zh-TW')}\n可用金額：NT$${amount.toLocaleString('zh-TW')}\n股票現價：NT$${buyPrice.toFixed(2)}\n\n可用金額不足以買入至少1股（需要至少 NT$${buyPrice.toLocaleString('zh-TW')}）`);
@@ -18918,6 +17582,27 @@ function showEditDividendRecordModal(record) {
                         } else {
                             // 沒有價格無法計算：刪除既有關聯買入記錄
                             if (linkedBuyIndexes.length > 0) {
+                                // 刪除關聯的記帳本轉帳記錄
+                                try {
+                                    const accountingRecords = JSON.parse(localStorage.getItem('accountingRecords') || '[]');
+                                    const deletedInvestmentIds = linkedBuyIndexes.map(i => {
+                                        const invRecord = records[i];
+                                        return invRecord ? (invRecord.timestamp || invRecord.id) : null;
+                                    }).filter(id => id !== null);
+                                    
+                                    if (deletedInvestmentIds.length > 0) {
+                                        accountingRecords = accountingRecords.filter(ar => {
+                                            if (!ar || ar.type !== 'transfer' || ar.linkedInvestment !== true) return true;
+                                            const invId = ar.investmentRecordId != null ? String(ar.investmentRecordId) : '';
+                                            return !deletedInvestmentIds.includes(invId);
+                                        });
+                                        localStorage.setItem('accountingRecords', JSON.stringify(accountingRecords));
+                                        console.log('已刪除關聯的股利再投入轉帳記錄');
+                                    }
+                                } catch (e) {
+                                    console.warn('刪除股利再投入轉帳記錄失敗:', e);
+                                }
+                                
                                 linkedBuyIndexes.sort((a, b) => b - a).forEach(i => records.splice(i, 1));
                             }
                         }
@@ -19097,14 +17782,47 @@ function initInvestmentInput(type) {
     
     // 查詢股價按鈕（暫時顯示提示）
     if (queryBtn) {
-        queryBtn.onclick = () => {
+        queryBtn.onclick = async () => {
             const code = stockCodeInput ? stockCodeInput.value.trim() : '';
             if (!code) {
-                alert('請先輸入股票代碼');
+                showAppAlert({
+                    title: '查詢股價',
+                    message: '請先輸入股票代碼'
+                });
                 return;
             }
-            // 這裡可以後續接入API查詢股價
-            alert('查詢股價功能開發中，請手動輸入價格');
+
+            queryBtn.disabled = true;
+            queryBtn.textContent = '查詢中...';
+            try {
+                const normalized = code.replace(/\s+/g, '');
+                const price = await fetchStockPrice(normalized, { allowPrompt: false });
+                if (price != null) {
+                    if (priceInput) {
+                        priceInput.value = price.toFixed(2);
+                    }
+                    showAppAlert({
+                        title: '查詢成功',
+                        message: `目前 ${normalized} 的現價約為 NT$${price.toFixed(2)}（來自 Yahoo/自動更新）`
+                    });
+                } else {
+                    showAppAlert({
+                        title: '查詢失敗',
+                        message: '無法取得最新股價，請稍後再試或手動輸入。'
+                    });
+                    const url = `https://www.cnyes.com/twstock/${encodeURIComponent(normalized)}`;
+                    window.open(url, '_blank', 'noopener');
+                }
+            } catch (error) {
+                console.error('查詢股價失敗', error);
+                showAppAlert({
+                    title: '查詢錯誤',
+                    message: '發生錯誤，請稍後再試。'
+                });
+            } finally {
+                queryBtn.disabled = false;
+                queryBtn.textContent = '查詢股價';
+            }
         };
     }
     
@@ -19369,9 +18087,13 @@ function handleInvestmentKeyPress(key) {
 }
 
 // 計算投資手續費
-function calculateInvestmentFee(totalAmount) {
-    // 手續費為總金額的0.1425%，最低20元
-    return Math.max(Math.round(totalAmount * 0.001425), 20);
+function calculateInvestmentFee(totalAmount, shares = 0) {
+    // 手續費為總金額的0.1425%，但只有買足 1,000 股才會啟動最低 NT$20，其他數量直接用比例計算
+    const fee = Math.round(totalAmount * 0.001425);
+    if (shares >= 1000) {
+        return Math.max(fee, 20);
+    }
+    return fee;
 }
 
 // 更新投資輸入顯示
@@ -19387,7 +18109,7 @@ function updateInvestmentDisplay() {
     // 手續費：檢查是否勾選自動計算
     const autoFeeCheckbox = document.getElementById('calcAutoFeeCheckbox');
     const isAutoFee = autoFeeCheckbox?.checked || false;
-    const fee = isAutoFee ? calculateInvestmentFee(total) : (parseFloat(feeInput?.value) || 0);
+    const fee = isAutoFee ? calculateInvestmentFee(total, shares) : (parseFloat(feeInput?.value) || 0);
     
     // 如果勾選自動計算，更新手續費欄位顯示
     if (isAutoFee && feeInput) {
@@ -19474,7 +18196,7 @@ function saveInvestmentRecord(type) {
     const feeInput = document.getElementById('calcFeeInput');
     const autoFeeCheckbox = document.getElementById('calcAutoFeeCheckbox');
     const isAutoFee = autoFeeCheckbox?.checked || false;
-    const fee = isAutoFee ? calculateInvestmentFee(totalAmount) : (parseFloat(feeInput?.value) || 0);
+    const fee = isAutoFee ? calculateInvestmentFee(totalAmount, shares) : (parseFloat(feeInput?.value) || 0);
     
     let record;
     
@@ -20077,6 +18799,28 @@ function saveDividendRecord() {
                     timestamp: new Date().toISOString()
                 };
                 records.push(buyRecord);
+                
+                // 創建記帳本轉帳記錄（從現金帳戶轉到投資帳戶）
+                try {
+                    const accountingRecords = JSON.parse(localStorage.getItem('accountingRecords') || '[]');
+                    const transferRecord = {
+                        type: 'transfer',
+                        category: '股票再投入', // 轉帳不顯示分類
+                        amount: amount, // 股利金額
+                        note: `股利再投入：${stockName} (${stockCode}) ${buyShares}股 @ NT$${buyPrice.toFixed(2)}`,
+                        date: date,
+                        fromAccount: '現金', // 從現金帳戶
+                        toAccount: '投資', // 到投資帳戶
+                        linkedInvestment: true,
+                        investmentRecordId: buyRecord.timestamp,
+                        timestamp: new Date().toISOString()
+                    };
+                    accountingRecords.push(transferRecord);
+                    localStorage.setItem('accountingRecords', JSON.stringify(accountingRecords));
+                    console.log('已創建股利再投入轉帳記錄');
+                } catch (e) {
+                    console.warn('創建股利再投入轉帳記錄失敗:', e);
+                }
             } else {
                 // 顯示通知：不足以買入至少1股
                 const availableAmount = amount - fee;
@@ -21022,6 +19766,7 @@ function executeDCATransaction(plan) {
     const referencePriceEl = document.getElementById('dcaExecuteReferencePrice');
     const referencePriceValueEl = document.getElementById('dcaExecuteReferencePriceValue');
     const priceInput = document.getElementById('dcaExecutePriceInput');
+    const priceHintEl = document.getElementById('dcaExecutePriceHint');
     const previewEl = document.getElementById('dcaExecutePreview');
     const sharesEl = document.getElementById('dcaExecuteShares');
     const feeEl = document.getElementById('dcaExecuteFee');
@@ -21029,7 +19774,13 @@ function executeDCATransaction(plan) {
     const confirmBtn = document.getElementById('dcaExecuteConfirm');
     const cancelBtn = document.getElementById('dcaExecuteCancel');
     const closeBtn = document.getElementById('dcaExecuteModalClose');
-    
+    const resetPriceHint = () => {
+        if (!priceHintEl) return;
+        priceHintEl.textContent = '';
+        priceHintEl.classList.remove('hint-error', 'hint-success');
+    };
+    resetPriceHint();
+
     if (!modal) {
         // 如果沒有對話框，使用舊的 prompt 方式
         const referenceText = referencePrice 
@@ -21062,6 +19813,9 @@ function executeDCATransaction(plan) {
         if (referencePriceEl) referencePriceEl.style.display = 'block';
         if (referencePriceValueEl) referencePriceValueEl.textContent = referencePrice.toLocaleString('zh-TW');
         if (priceInput) priceInput.value = referencePrice.toString();
+        if (priceHintEl) {
+            priceHintEl.textContent = '已套用參考價，可再更新為最新市價';
+        }
     } else {
         if (referencePriceEl) referencePriceEl.style.display = 'none';
         if (priceInput) priceInput.value = '';
@@ -21098,9 +19852,62 @@ function executeDCATransaction(plan) {
     
     // 綁定輸入事件
     if (priceInput) {
-        priceInput.oninput = updatePreview;
+        priceInput.oninput = () => {
+            priceInput.dataset.userEdited = 'true';
+            resetPriceHint();
+            updatePreview();
+        };
         priceInput.onfocus = () => priceInput.select();
     }
+
+    const tryAutoFillCurrentPrice = async () => {
+        if (!priceInput || priceInput.dataset.fetching === 'true') return;
+        if (priceInput.dataset.userEdited === 'true') return;
+        priceInput.dataset.fetching = 'true';
+        if (priceHintEl) {
+            priceHintEl.textContent = '自動讀取現價中…';
+            priceHintEl.classList.remove('hint-error');
+        }
+        priceInput.disabled = true;
+        priceInput.classList.add('is-loading');
+        try {
+            const autoPrice = await fetchStockPrice(plan.stockCode, {
+                allowPrompt: false,
+                maxAgeMs: 60 * 1000
+            });
+            if (priceInput.dataset.userEdited === 'true') {
+                return;
+            }
+            if (autoPrice && !isNaN(autoPrice)) {
+                const numericPrice = Number(autoPrice);
+                const displayValue = Number.isFinite(numericPrice)
+                    ? (numericPrice % 1 === 0 ? numericPrice.toString() : numericPrice.toFixed(2))
+                    : autoPrice.toString();
+                priceInput.value = displayValue;
+                if (priceHintEl) {
+                    priceHintEl.textContent = '已自動套用最新現價';
+                    priceHintEl.classList.remove('hint-error');
+                    priceHintEl.classList.add('hint-success');
+                }
+                updatePreview();
+            } else if (priceHintEl) {
+                priceHintEl.textContent = '無法取得現價，請手動輸入';
+                priceHintEl.classList.remove('hint-success');
+                priceHintEl.classList.add('hint-error');
+            }
+        } catch (error) {
+            console.warn('自動取得定期定額現價失敗:', error);
+            if (priceHintEl) {
+                priceHintEl.textContent = '無法取得現價，請手動輸入';
+                priceHintEl.classList.remove('hint-success');
+                priceHintEl.classList.add('hint-error');
+            }
+        } finally {
+            priceInput.disabled = false;
+            priceInput.classList.remove('is-loading');
+            delete priceInput.dataset.fetching;
+        }
+    };
     
     // 綁定確認按鈕
     if (confirmBtn) {
@@ -21129,6 +19936,7 @@ function executeDCATransaction(plan) {
     
     // 初始化預覽
     updatePreview();
+    tryAutoFillCurrentPrice();
 }
 
 // 處理定期定額交易（實際執行）
@@ -21374,6 +20182,56 @@ function showAccountSelectModal() {
             showAccountManageModal();
         };
     }
+    
+    // 綁定帳戶選擇事件
+    const accountList = document.getElementById('accountList');
+    if (accountList) {
+        // 綁定詳情按鈕事件
+        accountList.querySelectorAll('.account-detail-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation(); // 阻止事件冒泡
+                e.preventDefault(); // 阻止默認行為
+                const accountId = btn.dataset.accountId || btn.closest('.account-item')?.dataset.accountId;
+                if (accountId && typeof showAccountDetail === 'function') {
+                    showAccountDetail(accountId);
+                }
+            });
+        });
+        
+        // 綁定編輯按鈕事件
+        accountList.querySelectorAll('.account-edit-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation(); // 阻止事件冒泡
+                e.preventDefault(); // 阻止默認行為
+                const accountId = btn.dataset.accountId || btn.closest('.account-item')?.dataset.accountId;
+                if (accountId) {
+                    editAccount(accountId);
+                }
+            });
+        });
+        
+        // 綁定帳戶選擇事件
+        accountList.querySelectorAll('.account-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                // 如果點擊的是編輯或詳情按鈕，不觸發選擇
+                if (e.target.classList.contains('account-edit-btn') || e.target.closest('.account-edit-btn') ||
+                    e.target.classList.contains('account-detail-btn') || e.target.closest('.account-detail-btn')) {
+                    return;
+                }
+                
+                const accountId = item.dataset.accountId;
+                const accounts = getAccounts();
+                const account = accounts.find(a => a.id === accountId);
+                
+                if (account) {
+                    window.selectedAccount = account;
+                    // 更新所有相關顯示
+                    updateAllAccountRelatedDisplays();
+                    modal.style.display = 'none';
+                }
+            });
+        });
+    }
 }
 
 // 更新帳戶列表顯示
@@ -21422,52 +20280,6 @@ function updateAccountList() {
     });
     
     accountList.innerHTML = html;
-    
-    // 綁定詳情按鈕事件
-    accountList.querySelectorAll('.account-detail-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation(); // 阻止事件冒泡
-            e.preventDefault(); // 阻止默認行為
-            const accountId = btn.dataset.accountId || btn.closest('.account-item')?.dataset.accountId;
-            if (accountId && typeof showAccountDetail === 'function') {
-                showAccountDetail(accountId);
-            }
-        });
-    });
-    
-    // 綁定編輯按鈕事件
-    accountList.querySelectorAll('.account-edit-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation(); // 阻止事件冒泡
-            e.preventDefault(); // 阻止默認行為
-            const accountId = btn.dataset.accountId || btn.closest('.account-item')?.dataset.accountId;
-            if (accountId) {
-                editAccount(accountId);
-            }
-        });
-    });
-    
-    // 綁定帳戶選擇事件
-    accountList.querySelectorAll('.account-item').forEach(item => {
-        item.addEventListener('click', (e) => {
-            // 如果點擊的是編輯或詳情按鈕，不觸發選擇
-            if (e.target.classList.contains('account-edit-btn') || e.target.closest('.account-edit-btn') ||
-                e.target.classList.contains('account-detail-btn') || e.target.closest('.account-detail-btn')) {
-                return;
-            }
-            
-            const accountId = item.dataset.accountId;
-            const accounts = getAccounts();
-            const account = accounts.find(a => a.id === accountId);
-            
-            if (account) {
-                window.selectedAccount = account;
-                // 更新所有相關顯示
-                updateAllAccountRelatedDisplays();
-                modal.style.display = 'none';
-            }
-        });
-    });
 }
 
 // 更新所有帳戶相關的顯示
@@ -21534,7 +20346,7 @@ function updateAccountDisplay() {
             `;
             accountInfo.style.cursor = 'pointer';
             accountInfo.onclick = () => {
-                showFirstTimeWelcome();
+                showAccountManageModal();
             };
         }
     }
@@ -21623,11 +20435,6 @@ function showAccountManageModal(accountId = null) {
         saveBtn.onclick = () => {
             playClickSound(); // 播放點擊音效
             saveAccount();
-            // 關閉歡迎對話框（如果存在）
-            const welcomeModal = document.querySelector('.first-time-welcome-modal');
-            if (welcomeModal && document.body.contains(welcomeModal)) {
-                document.body.removeChild(welcomeModal);
-            }
         };
     }
     
@@ -21713,11 +20520,8 @@ function saveAccount() {
     // 更新所有相關顯示
     updateAllAccountRelatedDisplays();
     
-    // 如果是從歡迎對話框創建的，不顯示選擇對話框
-    const welcomeModal = document.querySelector('.first-time-welcome-modal');
-    if (!welcomeModal) {
-        showAccountSelectModal();
-    }
+    // 顯示選擇對話框
+    showAccountSelectModal();
 }
 
 // 顯示帳戶詳情
@@ -21918,10 +20722,9 @@ function initAccountManagement() {
     const isFirstTime = accounts.length === 0;
     
     if (isFirstTime) {
-        // 第一次使用，顯示歡迎對話框並提示創建帳戶
-        setTimeout(() => {
-            showFirstTimeWelcome();
-        }, 500); // 延遲顯示，確保頁面已完全載入
+        // 第一次使用，直接設置默認選中為空
+        window.selectedAccount = null;
+        updateAccountDisplay();
     } else {
         // 已有帳戶，設置默認選中
         window.selectedAccount = accounts[0];
@@ -21929,70 +20732,6 @@ function initAccountManagement() {
     }
 }
 
-// 顯示第一次使用歡迎對話框
-function showFirstTimeWelcome() {
-    const modal = document.createElement('div');
-    modal.className = 'first-time-welcome-modal';
-    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10002; display: flex; align-items: center; justify-content: center;';
-    
-    modal.innerHTML = `
-        <div class="welcome-modal-content" style="background: white; border-radius: 20px; padding: 32px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.2);">
-            <div style="font-size: 64px; margin-bottom: 20px;">👋</div>
-            <h2 style="font-size: 24px; font-weight: 600; color: #333; margin: 0 0 12px 0;">歡迎使用記帳本！</h2>
-            <p style="font-size: 15px; color: #666; margin: 0 0 24px 0; line-height: 1.6;">
-                為了開始記帳，請先創建一個帳戶。<br>
-                您可以隨時在記帳時添加更多帳戶。
-            </p>
-            <div style="display: flex; flex-direction: column; gap: 12px;">
-                <button id="welcomeCreateAccountBtn" style="width: 100%; padding: 14px; border: none; border-radius: 12px; background: linear-gradient(135deg, #ffb6d9 0%, #ff9ec7 100%); color: white; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(255, 105, 180, 0.3);">
-                    ➕ 創建帳戶
-                </button>
-                <button id="welcomeSkipBtn" style="width: 100%; padding: 12px; border: 2px solid #f0f0f0; border-radius: 12px; background: #ffffff; color: #666; font-size: 14px; font-weight: 500; cursor: pointer;">
-                    稍後再說
-                </button>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    // 創建帳戶按鈕
-    const createBtn = modal.querySelector('#welcomeCreateAccountBtn');
-    if (createBtn) {
-        createBtn.addEventListener('click', () => {
-            // 先移除歡迎對話框
-            if (document.body.contains(modal)) {
-                document.body.removeChild(modal);
-            }
-            // 稍微延遲後顯示帳戶管理對話框，確保歡迎對話框已完全移除
-            setTimeout(() => {
-                showAccountManageModal();
-            }, 100);
-        });
-    }
-    
-    // 稍後再說按鈕
-    const skipBtn = modal.querySelector('#welcomeSkipBtn');
-    if (skipBtn) {
-        skipBtn.addEventListener('click', () => {
-            if (document.body.contains(modal)) {
-                document.body.removeChild(modal);
-            }
-            // 更新帳戶顯示（即使沒有帳戶）
-            updateAccountDisplay();
-        });
-    }
-    
-    // 點擊遮罩關閉（可選）
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            if (document.body.contains(modal)) {
-                document.body.removeChild(modal);
-            }
-            updateAccountDisplay();
-        }
-    });
-}
 
 // ========== 表情選擇功能 ==========
 
@@ -22127,36 +20866,40 @@ function uploadImageEmoji(container) {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    input.style.display = 'none';
-    document.body.appendChild(input);
-    
     input.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
             reader.onload = (event) => {
-                const imageUrl = event.target.result;
-                // 保存到localStorage
+                // 直接使用原始圖片，不進行裁切
+                const imageData = event.target.result;
+                
+                // 保存圖片表情
                 const savedEmojis = JSON.parse(localStorage.getItem('imageEmojis') || '[]');
-                savedEmojis.push({ url: imageUrl, name: file.name });
+                const emojiData = {
+                    id: Date.now().toString(),
+                    url: imageData,
+                    createdAt: new Date().toISOString()
+                };
+                savedEmojis.push(emojiData);
                 localStorage.setItem('imageEmojis', JSON.stringify(savedEmojis));
                 
-                // 添加到網格
-                const emojiBtn = document.createElement('button');
-                emojiBtn.className = 'emoji-item image-emoji-item';
-                emojiBtn.innerHTML = `<img src="${imageUrl}" alt="表情" class="emoji-preview-image">`;
-                emojiBtn.setAttribute('data-emoji', imageUrl);
-                emojiBtn.setAttribute('data-type', 'image');
-                emojiBtn.addEventListener('click', () => {
-                    selectEmoji(imageUrl, 'image');
-                });
-                container.appendChild(emojiBtn);
+                // 添加到表情容器
+                if (container) {
+                    const emojiBtn = document.createElement('button');
+                    emojiBtn.className = 'emoji-item image-emoji-item';
+                    emojiBtn.innerHTML = `<img src="${imageData}" alt="表情" class="emoji-preview-image">`;
+                    emojiBtn.setAttribute('data-emoji', imageData);
+                    emojiBtn.setAttribute('data-type', 'image');
+                    emojiBtn.addEventListener('click', () => {
+                        selectEmoji(imageData, 'image');
+                    });
+                    container.appendChild(emojiBtn);
+                }
             };
             reader.readAsDataURL(file);
         }
-        document.body.removeChild(input);
     });
-    
     input.click();
 }
 
@@ -22358,7 +21101,7 @@ function showReceiptImageModal(imageUrl) {
     modal.innerHTML = `
         <div style="position: relative; max-width: 90%; max-height: 90%; display: flex; align-items: center; justify-content: center;">
             <img src="${imageUrl}" alt="收據" style="max-width: 100%; max-height: 90vh; object-fit: contain; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
-            <button class="receipt-image-close-btn" style="position: absolute; top: -40px; right: 0; background: rgba(255,255,255,0.9); border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #333; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">✕</button>
+            <button class="receipt-image-close-btn" style="position: absolute; top: -40px; right: 0; background: getComputedStyle(document.documentElement).getPropertyValue('--bg-white').trim() || 'var(--bg-white)'; border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #333; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">✕</button>
         </div>
     `;
     
@@ -22395,7 +21138,7 @@ function showReceiptImageModal(imageUrl) {
     document.addEventListener('keydown', handleEsc);
 }
 
-// ========== 帳戶圖片上傳和裁切功能 ==========
+// ========== 帳戶圖片上傳功能 ==========
 
 // 初始化帳戶圖片上傳功能
 function initAccountImageUpload() {
@@ -22412,27 +21155,22 @@ function initAccountImageUpload() {
         imageInput.click();
     });
     
-    // 文件選擇 - 直接使用，不裁切
+    // 文件選擇 - 直接使用原始圖片
     imageInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
             reader.onload = (event) => {
-                // 直接使用上傳的圖片，不進行裁切
+                // 直接使用原始圖片，不進行裁切
                 const imageData = event.target.result;
-                const previewImg = document.getElementById('accountImagePreviewImg');
-                const placeholder = document.getElementById('accountImagePlaceholder');
-                const removeBtn = document.getElementById('accountImageRemoveBtn');
                 
+                // 顯示圖片預覽
                 if (previewImg) {
                     previewImg.src = imageData;
                     previewImg.style.display = 'block';
                 }
                 if (placeholder) placeholder.style.display = 'none';
                 if (removeBtn) removeBtn.style.display = 'block';
-                
-                // 重置文件輸入，允許重新選擇同一文件
-                imageInput.value = '';
             };
             reader.readAsDataURL(file);
         }
@@ -22451,237 +21189,1451 @@ function initAccountImageUpload() {
     }
 }
 
-// 顯示圖片裁切對話框
-let cropImageData = null;
-let cropCanvas = null;
-let cropCtx = null;
-let cropBox = null;
-let isDragging = false;
-let dragStartX = 0;
-let dragStartY = 0;
-let cropX = 0;
-let cropY = 0;
-let cropWidth = 200;
-let cropHeight = 200;
+// 通用模態框控制
+const FOCUSABLE_SELECTOR = [
+    '[data-autofocus]',
+    'button:not([disabled])',
+    'input:not([disabled])',
+    'select:not([disabled])',
+    'textarea:not([disabled])',
+    'a[href]',
+    '[tabindex]:not([tabindex="-1"])'
+].join(',');
 
-function showImageCropModal(imageData) {
-    const modal = document.getElementById('imageCropModal');
-    const canvas = document.getElementById('cropCanvas');
-    const overlay = document.getElementById('cropOverlay');
-    cropBox = document.getElementById('cropBox');
-    
-    if (!modal || !canvas || !overlay || !cropBox) return;
-    
-    cropImageData = imageData;
-    cropCanvas = canvas;
-    cropCtx = canvas.getContext('2d');
-    
-    // 設置畫布大小
-    const maxSize = 400;
-    canvas.width = maxSize;
-    canvas.height = maxSize;
-    
-    // 載入圖片
-    const img = new Image();
-    img.onload = () => {
-        // 計算縮放比例以適應畫布
-        const scale = Math.min(maxSize / img.width, maxSize / img.height);
-        const displayWidth = img.width * scale;
-        const displayHeight = img.height * scale;
-        
-        // 居中顯示
-        const offsetX = (maxSize - displayWidth) / 2;
-        const offsetY = (maxSize - displayHeight) / 2;
-        
-        // 清空畫布
-        cropCtx.fillStyle = '#f0f0f0';
-        cropCtx.fillRect(0, 0, maxSize, maxSize);
-        
-        // 繪製圖片
-        cropCtx.drawImage(img, offsetX, offsetY, displayWidth, displayHeight);
-        
-        // 初始化裁切框
-        cropWidth = Math.min(200, displayWidth);
-        cropHeight = Math.min(200, displayHeight);
-        cropX = offsetX + (displayWidth - cropWidth) / 2;
-        cropY = offsetY + (displayHeight - cropHeight) / 2;
-        
-        updateCropBox();
-        updateCropSizeInputs();
-    };
-    img.src = imageData;
-    
-    // 設置遮罩和裁切框大小
-    overlay.style.width = maxSize + 'px';
-    overlay.style.height = maxSize + 'px';
-    
-    // 顯示對話框
+function openModal(modal) {
+    if (!modal) return;
+
+    const activeEl = document.activeElement;
+    if (activeEl && typeof activeEl.focus === 'function' && !modal.contains(activeEl)) {
+        modal._previouslyFocusedElement = activeEl;
+    }
+
     modal.style.display = 'flex';
-    
-    // 綁定事件
-    bindCropEvents();
-}
+    modal.removeAttribute('inert');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
 
-// 綁定裁切事件
-function bindCropEvents() {
-    if (!cropBox) return;
-    
-    // 拖拽開始
-    cropBox.addEventListener('mousedown', (e) => {
-        isDragging = true;
-        dragStartX = e.clientX - cropX;
-        dragStartY = e.clientY - cropY;
-        e.preventDefault();
-    });
-    
-    // 拖拽中
-    document.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        
-        const overlay = document.getElementById('cropOverlay');
-        if (!overlay) return;
-        
-        const rect = overlay.getBoundingClientRect();
-        const newX = e.clientX - dragStartX - rect.left;
-        const newY = e.clientY - dragStartY - rect.top;
-        
-        // 限制在畫布範圍內
-        cropX = Math.max(0, Math.min(newX, 400 - cropWidth));
-        cropY = Math.max(0, Math.min(newY, 400 - cropHeight));
-        
-        updateCropBox();
-    });
-    
-    // 拖拽結束
-    document.addEventListener('mouseup', () => {
-        isDragging = false;
-    });
-    
-    // 尺寸輸入變化
-    const widthInput = document.getElementById('cropWidth');
-    const heightInput = document.getElementById('cropHeight');
-    
-    if (widthInput) {
-        widthInput.addEventListener('input', (e) => {
-            cropWidth = parseInt(e.target.value) || 200;
-            cropWidth = Math.max(50, Math.min(500, cropWidth));
-            cropX = Math.min(cropX, 400 - cropWidth);
-            updateCropBox();
-        });
-    }
-    
-    if (heightInput) {
-        heightInput.addEventListener('input', (e) => {
-            cropHeight = parseInt(e.target.value) || 200;
-            cropHeight = Math.max(50, Math.min(500, cropHeight));
-            cropY = Math.min(cropY, 400 - cropHeight);
-            updateCropBox();
-        });
-    }
-}
-
-// 更新裁切框位置
-function updateCropBox() {
-    if (!cropBox) return;
-    cropBox.style.left = cropX + 'px';
-    cropBox.style.top = cropY + 'px';
-    cropBox.style.width = cropWidth + 'px';
-    cropBox.style.height = cropHeight + 'px';
-}
-
-// 更新尺寸輸入框
-function updateCropSizeInputs() {
-    const widthInput = document.getElementById('cropWidth');
-    const heightInput = document.getElementById('cropHeight');
-    if (widthInput) widthInput.value = cropWidth;
-    if (heightInput) heightInput.value = cropHeight;
-}
-
-// 確認裁切
-function confirmCrop() {
-    if (!cropCanvas || !cropCtx || !cropImageData) return;
-    
-    // 創建臨時canvas進行裁切
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = cropWidth;
-    tempCanvas.height = cropHeight;
-    const tempCtx = tempCanvas.getContext('2d');
-    
-    // 計算原始圖片的裁切區域
-    const img = new Image();
-    img.onload = () => {
-        const maxSize = 400;
-        const scale = Math.min(maxSize / img.width, maxSize / img.height);
-        const displayWidth = img.width * scale;
-        const displayHeight = img.height * scale;
-        const offsetX = (maxSize - displayWidth) / 2;
-        const offsetY = (maxSize - displayHeight) / 2;
-        
-        // 計算原始圖片的裁切區域
-        const sourceX = (cropX - offsetX) / scale;
-        const sourceY = (cropY - offsetY) / scale;
-        const sourceWidth = cropWidth / scale;
-        const sourceHeight = cropHeight / scale;
-        
-        // 裁切圖片
-        tempCtx.drawImage(
-            img,
-            sourceX, sourceY, sourceWidth, sourceHeight,
-            0, 0, cropWidth, cropHeight
-        );
-        
-        // 獲取裁切後的圖片數據
-        const croppedImage = tempCanvas.toDataURL('image/png');
-        
-        // 更新預覽
-        const previewImg = document.getElementById('accountImagePreviewImg');
-        const placeholder = document.getElementById('accountImagePlaceholder');
-        const removeBtn = document.getElementById('accountImageRemoveBtn');
-        
-        if (previewImg) {
-            previewImg.src = croppedImage;
-            previewImg.style.display = 'block';
+    requestAnimationFrame(() => {
+        const focusTarget = modal.querySelector(FOCUSABLE_SELECTOR);
+        if (focusTarget && typeof focusTarget.focus === 'function') {
+            focusTarget.focus();
         }
-        if (placeholder) placeholder.style.display = 'none';
-        if (removeBtn) removeBtn.style.display = 'block';
-        
-        // 關閉裁切對話框
-        const modal = document.getElementById('imageCropModal');
-        if (modal) modal.style.display = 'none';
-    };
-    img.src = cropImageData;
+    });
 }
 
-// 初始化裁切對話框事件
-function initImageCropModal() {
-    const modal = document.getElementById('imageCropModal');
-    const closeBtn = document.getElementById('imageCropClose');
-    const cancelBtn = document.getElementById('cropCancelBtn');
-    const confirmBtn = document.getElementById('cropConfirmBtn');
-    const overlay = modal?.querySelector('.modal-overlay');
+function closeModal(modal) {
+    if (!modal) return;
+
+    if (modal.contains(document.activeElement) && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur();
+    }
+
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
+    modal.setAttribute('inert', '');
+
+    // 如果沒有其他開啟的模態框，移除 body 狀態
+    const anyVisibleModal = Array.from(document.querySelectorAll('.modal-overlay'))
+        .some(overlay => overlay.style.display === 'flex');
+    if (!anyVisibleModal) {
+        document.body.classList.remove('modal-open');
+    }
+
+    const previousFocus = modal._previouslyFocusedElement;
+    if (previousFocus && typeof previousFocus.focus === 'function') {
+        requestAnimationFrame(() => previousFocus.focus());
+    }
+}
+
+// ========== 想買的東西 / 存錢目標功能 ==========
+
+// 數據存儲管理
+class WishlistSavingsManager {
+    constructor() {
+        this.wishlistData = this.loadWishlistData();
+        this.savingsData = this.loadSavingsData();
+        this.currentEditingItem = null;
+        this.currentEditingGoal = null;
+        this.currentTab = 'wishlist';
+    }
+
+    // 載入想買的東西數據
+    loadWishlistData() {
+        const data = localStorage.getItem('wishlistData');
+        return data ? JSON.parse(data) : [];
+    }
+
+    // 載入存錢目標數據
+    loadSavingsData() {
+        const data = localStorage.getItem('savingsData');
+        return data ? JSON.parse(data) : [];
+    }
+
+    // 保存想買的東西數據
+    saveWishlistData() {
+        localStorage.setItem('wishlistData', JSON.stringify(this.wishlistData));
+    }
+
+    // 保存存錢目標數據
+    saveSavingsData() {
+        localStorage.setItem('savingsData', JSON.stringify(this.savingsData));
+    }
+
+    // 新增想買的東西項目
+    addWishlistItem(item) {
+        item.id = Date.now().toString();
+        item.createdAt = new Date().toISOString();
+        this.wishlistData.push(item);
+        this.saveWishlistData();
+        return item;
+    }
+
+    // 更新想買的東西項目
+    updateWishlistItem(id, updates) {
+        const index = this.wishlistData.findIndex(item => item.id === id);
+        if (index !== -1) {
+            this.wishlistData[index] = { ...this.wishlistData[index], ...updates };
+            this.saveWishlistData();
+            return this.wishlistData[index];
+        }
+        return null;
+    }
+
+    // 刪除想買的東西項目
+    deleteWishlistItem(id) {
+        this.wishlistData = this.wishlistData.filter(item => item.id !== id);
+        this.saveWishlistData();
+    }
+
+    // 新增存錢目標
+    addSavingsGoal(goal) {
+        goal.id = Date.now().toString();
+        goal.createdAt = new Date().toISOString();
+        goal.currentAmount = parseFloat(goal.currentAmount) || 0;
+        goal.monthlyAmount = parseFloat(goal.monthlyAmount) || 0;
+        this.savingsData.push(goal);
+        this.saveSavingsData();
+        return goal;
+    }
+
+    // 更新存錢目標
+    updateSavingsGoal(id, updates) {
+        const index = this.savingsData.findIndex(goal => goal.id === id);
+        if (index !== -1) {
+            this.savingsData[index] = { ...this.savingsData[index], ...updates };
+            this.savingsData[index].currentAmount = parseFloat(this.savingsData[index].currentAmount) || 0;
+            this.savingsData[index].monthlyAmount = parseFloat(this.savingsData[index].monthlyAmount) || 0;
+            this.saveSavingsData();
+            return this.savingsData[index];
+        }
+        return null;
+    }
+
+    // 刪除存錢目標
+    deleteSavingsGoal(id) {
+        this.savingsData = this.savingsData.filter(goal => goal.id !== id);
+        this.saveSavingsData();
+    }
+
+    // 計算存錢目標進度
+    calculateSavingsProgress(goal) {
+        const target = parseFloat(goal.targetAmount) || 0;
+        const current = parseFloat(goal.currentAmount) || 0;
+        const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
+        const remaining = Math.max(target - current, 0);
+        const monthly = parseFloat(goal.monthlyAmount) || 0;
+        const monthsNeeded = monthly > 0 ? Math.ceil(remaining / monthly) : 0;
+        
+        return {
+            percentage,
+            remaining,
+            monthsNeeded,
+            current,
+            target
+        };
+    }
+}
+
+// 創建管理器實例
+const wishlistSavingsManager = new WishlistSavingsManager();
+
+// 渲染想買的東西列表
+function renderWishlistList() {
+    const listContainer = document.getElementById('wishlistList');
+    if (!listContainer) return;
+
+    const items = wishlistSavingsManager.wishlistData;
     
-    if (closeBtn) {
-        closeBtn.addEventListener('click', () => {
-            if (modal) modal.style.display = 'none';
+    if (items.length === 0) {
+        listContainer.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">🛍️</div>
+                <div class="empty-state-text">還沒有想買的東西</div>
+                <div class="empty-state-subtext">點擊上方「➕ 新增項目」開始添加</div>
+            </div>
+        `;
+        return;
+    }
+
+    // 按重要性排序
+    items.sort((a, b) => (b.importance || 0) - (a.importance || 0));
+
+    listContainer.innerHTML = items.map(item => {
+        const importance = item.importance || 0;
+        const importanceLabel = importance >= 5
+            ? '必買清單'
+            : importance >= 4
+                ? '超想要'
+                : importance >= 3
+                    ? '想考慮'
+                    : importance > 0
+                        ? '靈感收藏'
+                        : '尚未評分';
+        const importanceTone = importance >= 4 ? 'high' : (importance >= 3 ? 'medium' : 'low');
+        const stars = [1, 2, 3, 4, 5].map(i => `<span class="star ${i <= importance ? 'filled' : ''}">★</span>`).join('');
+        
+        return `
+        <div class="wishlist-item" data-id="${item.id}" data-importance="${importance}">
+            <div class="wishlist-item-top">
+                <div class="wishlist-item-title-group">
+                    <span class="wishlist-item-type">${item.type || '生活'}</span>
+                    <h3 class="wishlist-item-title">${item.name || '未命名'}</h3>
+                    <div class="wishlist-item-meta">
+                        <span class="wishlist-chip importance ${importanceTone}">
+                            ${importanceLabel}
+                        </span>
+                        <span class="wishlist-chip wishlist-item-necessary ${item.necessary === '是' ? 'yes' : 'no'}">
+                            ${item.necessary === '是' ? '必要' : '非必要'}
+                        </span>
+                    </div>
+                </div>
+                <div class="wishlist-item-amount-block">
+                    <span class="wishlist-amount-label">預估金額</span>
+                    <span class="wishlist-item-amount">NT$${(item.amount || 0).toLocaleString('zh-TW')}</span>
+                </div>
+            </div>
+            
+            <div class="wishlist-item-body">
+                <div class="wishlist-item-importance" aria-label="重要性 ${importance} 星">
+                    ${stars}
+                </div>
+                ${item.reason ? `
+                    <div class="wishlist-info-row">
+                        <span class="wishlist-info-label">💡 想買原因</span>
+                        <p>${item.reason}</p>
+                    </div>
+                ` : ''}
+                ${item.note ? `
+                    <div class="wishlist-info-row">
+                        <span class="wishlist-info-label">📝 備註</span>
+                        <p>${item.note}</p>
+                    </div>
+                ` : ''}
+            </div>
+            
+            <div class="wishlist-item-actions">
+                <button class="wishlist-item-action-btn edit" onclick="editWishlistItem('${item.id}')">編輯</button>
+                <button class="wishlist-item-action-btn delete" onclick="deleteWishlistItem('${item.id}')">刪除</button>
+            </div>
+        </div>
+        `;
+    }).join('');
+}
+
+// 渲染存錢目標列表
+function renderSavingsList() {
+    const listContainer = document.getElementById('savingsList');
+    if (!listContainer) return;
+
+    // 先清理錯誤的資料
+    cleanupSavingsData();
+    
+    const goals = wishlistSavingsManager.loadSavingsData();
+    
+    if (goals.length === 0) {
+        listContainer.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">💰</div>
+                <div class="empty-state-text">還沒有存錢目標</div>
+                <div class="empty-state-subtext">點擊上方「➕ 新增目標」開始設定</div>
+            </div>
+        `;
+        return;
+    }
+
+    // 按優先順序排序
+    const priorityOrder = { '高': 3, '中': 2, '低': 1 };
+    goals.sort((a, b) => {
+        const cleanPriorityA = a.priority || '低';
+        const cleanPriorityB = b.priority || '低';
+        return (priorityOrder[cleanPriorityB] || 0) - (priorityOrder[cleanPriorityA] || 0);
+    });
+
+    listContainer.innerHTML = goals.map(goal => {
+        const progress = wishlistSavingsManager.calculateSavingsProgress(goal);
+        const statusClass = goal.status === '進行中' ? 'active' : (goal.status === '暫停' ? 'paused' : 'completed');
+        
+        return `
+            <div class="savings-item" data-id="${goal.id}">
+                <div class="savings-item-header">
+                    <div>
+                        <h3 class="savings-item-title">${goal.name || '未命名'}</h3>
+                        <div class="savings-item-priority ${(goal.priority || '低').toLowerCase()}">${goal.priority || '低'}</div>
+                    </div>
+                    <div class="savings-status ${statusClass}">${goal.status || '進行中'}</div>
+                </div>
+                
+                <div class="savings-item-amounts">
+                    <div class="savings-amount-item">
+                        <div class="savings-amount-label">目標金額</div>
+                        <div class="savings-amount-value target">NT$${progress.target.toLocaleString('zh-TW')}</div>
+                    </div>
+                    <div class="savings-amount-item">
+                        <div class="savings-amount-label">目前已存</div>
+                        <div class="savings-amount-value current">NT$${progress.current.toLocaleString('zh-TW')}</div>
+                    </div>
+                </div>
+                
+                <div class="savings-progress">
+                    <div class="savings-progress-bar">
+                        <div class="savings-progress-fill" style="width: ${progress.percentage}%"></div>
+                    </div>
+                    <div class="savings-progress-text">
+                        <span>進度：${progress.percentage.toFixed(1)}%</span>
+                        <span>尚差：NT$${progress.remaining.toLocaleString('zh-TW')}</span>
+                    </div>
+                </div>
+                
+                ${goal.monthlyAmount > 0 ? `
+                    <div class="savings-monthly-info">
+                        💳 每月存 NT$${goal.monthlyAmount.toLocaleString('zh-TW')}，預計 ${progress.monthsNeeded} 個月完成
+                    </div>
+                ` : ''}
+                
+                ${goal.note ? `<div class="wishlist-item-note"><strong>備註：</strong>${goal.note}</div>` : ''}
+                
+                <div class="savings-item-actions">
+                    <button class="savings-item-action-btn edit" onclick="editSavingsGoal('${goal.id}')">編輯</button>
+                    <button class="savings-item-action-btn delete" onclick="deleteSavingsGoal('${goal.id}')">刪除</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// 顯示想買的東西表單頁面
+function showWishlistForm(item = null) {
+    const page = document.getElementById('pageWishlistForm');
+    const title = document.getElementById('wishlistFormPageTitle');
+    
+    if (!page || !title) return;
+    
+    title.textContent = item ? '編輯想買的東西' : '新增想買的東西';
+    
+    // 重置表單
+    document.getElementById('wishlistItemName').value = item ? item.name || '' : '';
+    document.getElementById('wishlistItemType').value = item ? item.type || '生活' : '生活';
+    document.getElementById('wishlistItemAmount').value = item ? item.amount || '' : '';
+    document.getElementById('wishlistItemReason').value = item ? item.reason || '' : '';
+    document.getElementById('wishlistItemNote').value = item ? item.note || '' : '';
+    
+    // 設置重要性
+    const importance = item ? item.importance || 0 : 0;
+    document.querySelectorAll('.star-btn').forEach((btn, index) => {
+        btn.classList.toggle('active', index < importance);
+    });
+    
+    // 設置必要性
+    const necessary = item ? item.necessary || '否' : '否';
+    const necessaryInput = document.querySelector(`input[name="wishlistItemNecessary"][value="${necessary}"]`);
+    if (necessaryInput) necessaryInput.checked = true;
+    
+    wishlistSavingsManager.currentEditingItem = item;
+    
+    // 顯示表單頁面，隱藏願望清單頁面
+    document.getElementById('pageWishlistSavings').style.display = 'none';
+    page.style.display = 'block';
+}
+
+// 關閉想買的東西表單頁面
+function closeWishlistForm() {
+    const page = document.getElementById('pageWishlistForm');
+    const wishlistPage = document.getElementById('pageWishlistSavings');
+    
+    if (page) page.style.display = 'none';
+    if (wishlistPage) wishlistPage.style.display = 'block';
+    
+    wishlistSavingsManager.currentEditingItem = null;
+}
+
+// 顯示存錢目標表單
+function showSavingsForm(goal = null) {
+    const modal = document.getElementById('savingsModal');
+    const title = document.getElementById('savingsModalTitle');
+    
+    if (!modal || !title) return;
+    
+    title.textContent = goal ? '編輯存錢目標' : '新增存錢目標';
+    
+    // 重置表單
+    document.getElementById('savingsGoalName').value = goal ? goal.name || '' : '';
+    document.getElementById('savingsGoalAmount').value = goal ? goal.targetAmount || '' : '';
+    document.getElementById('savingsGoalCurrent').value = goal ? goal.currentAmount || '' : '';
+    document.getElementById('savingsGoalMonthly').value = goal ? goal.monthlyAmount || '' : '';
+    // 載入存錢目標表單時，確保優先順序是正確的值
+    const priorityValue = goal ? goal.priority || '中' : '中';
+    // 如果優先順序包含日期格式，則重置為預設值
+    const cleanPriority = (priorityValue.includes('星期') || priorityValue.match(/^\d{2}-\d{2}/)) ? '中' : priorityValue;
+    document.getElementById('savingsGoalPriority').value = cleanPriority;
+    document.getElementById('savingsGoalStatus').value = goal ? goal.status || '進行中' : '進行中';
+    document.getElementById('savingsGoalNote').value = goal ? goal.note || '' : '';
+    
+    wishlistSavingsManager.currentEditingGoal = goal;
+    
+    openModal(modal);
+}
+
+// 保存想買的東西
+function saveWishlistItem() {
+    const name = document.getElementById('wishlistItemName').value.trim();
+    const type = document.getElementById('wishlistItemType').value;
+    const amount = parseFloat(document.getElementById('wishlistItemAmount').value) || 0;
+    const reason = document.getElementById('wishlistItemReason').value.trim();
+    const note = document.getElementById('wishlistItemNote').value.trim();
+    const importance = document.querySelectorAll('.star-btn.active').length;
+    const necessary = document.querySelector('input[name="wishlistItemNecessary"]:checked').value;
+    
+    if (!name) {
+        alert('請輸入項目名稱');
+        return;
+    }
+    
+    const itemData = { name, type, amount, reason, note, importance, necessary };
+    
+    if (wishlistSavingsManager.currentEditingItem) {
+        wishlistSavingsManager.updateWishlistItem(wishlistSavingsManager.currentEditingItem.id, itemData);
+    } else {
+        wishlistSavingsManager.addWishlistItem(itemData);
+    }
+    
+    closeWishlistForm();
+    renderWishlistList();
+}
+
+// 保存存錢目標
+function saveSavingsGoal() {
+    const name = document.getElementById('savingsGoalName').value.trim();
+    const targetAmount = parseFloat(document.getElementById('savingsGoalAmount').value) || 0;
+    const currentAmount = parseFloat(document.getElementById('savingsGoalCurrent').value) || 0;
+    const monthlyAmount = parseFloat(document.getElementById('savingsGoalMonthly').value) || 0;
+    let priority = document.getElementById('savingsGoalPriority').value;
+    // 確保優先順序是有效值，如果包含日期格式則重置為中
+    if (priority.includes('星期') || priority.match(/^\d{2}-\d{2}/)) {
+        priority = '中';
+    }
+    const status = document.getElementById('savingsGoalStatus').value;
+    const note = document.getElementById('savingsGoalNote').value.trim();
+    
+    if (!name) {
+        alert('請輸入目標名稱');
+        return;
+    }
+    
+    if (targetAmount <= 0) {
+        alert('請輸入有效的目標金額');
+        return;
+    }
+    
+    const goalData = { name, targetAmount, currentAmount, monthlyAmount, priority, status, note };
+    
+    if (wishlistSavingsManager.currentEditingGoal) {
+        wishlistSavingsManager.updateSavingsGoal(wishlistSavingsManager.currentEditingGoal.id, goalData);
+    } else {
+        wishlistSavingsManager.addSavingsGoal(goalData);
+    }
+    
+    closeSavingsForm();
+    renderSavingsList();
+}
+
+// 關閉想買的東西表單
+function closeWishlistForm() {
+    const modal = document.getElementById('wishlistModal');
+    closeModal(modal);
+    wishlistSavingsManager.currentEditingItem = null;
+}
+
+// 關閉存錢目標表單
+function closeSavingsForm() {
+    const modal = document.getElementById('savingsModal');
+    closeModal(modal);
+    wishlistSavingsManager.currentEditingGoal = null;
+}
+
+// 編輯想買的東西項目
+function editWishlistItem(id) {
+    const item = wishlistSavingsManager.wishlistData.find(item => item.id === id);
+    if (item) {
+        showWishlistForm(item);
+    }
+}
+
+// 編輯存錢目標
+function editSavingsGoal(id) {
+    const goal = wishlistSavingsManager.savingsData.find(goal => goal.id === id);
+    if (goal) {
+        showSavingsForm(goal);
+    }
+}
+
+// 刪除想買的東西項目
+function deleteWishlistItem(id) {
+    if (confirm('確定要刪除這個項目嗎？')) {
+        wishlistSavingsManager.deleteWishlistItem(id);
+        renderWishlistList();
+    }
+}
+
+// 清理存錢目標資料中的錯誤優先順序值
+function cleanupSavingsData() {
+    const savingsData = wishlistSavingsManager.loadSavingsData();
+    let hasChanges = false;
+    
+    savingsData.forEach(goal => {
+        if (goal.priority && (goal.priority.includes('星期') || goal.priority.match(/^\d{2}-\d{2}/))) {
+            goal.priority = '中';
+            hasChanges = true;
+        }
+    });
+    
+    if (hasChanges) {
+        wishlistSavingsManager.saveSavingsData();
+        console.log('已清理存錢目標資料中的錯誤優先順序值');
+    }
+}
+
+// 刪除存錢目標
+function deleteSavingsGoal(id) {
+    if (confirm('確定要刪除這個存錢目標嗎？')) {
+        wishlistSavingsManager.deleteSavingsGoal(id);
+        renderSavingsList();
+    }
+}
+
+function switchTab(tabName) {
+    // 更新選項卡按鈕狀態
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabName);
+    });
+    
+    // 更新內容顯示
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.toggle('active', content.id === `${tabName}Content`);
+    });
+    
+    wishlistSavingsManager.currentTab = tabName;
+    
+    // 重新渲染對應的列表
+    if (tabName === 'wishlist') {
+        renderWishlistList();
+    } else {
+        renderSavingsList();
+    }
+}
+
+// 初始化想買的東西/存錢目標頁面
+function initWishlistSavingsPage() {
+    // 綁定事件監聽器
+    const wishlistBackBtn = document.getElementById('wishlistSavingsBackBtn');
+    const pageWishlist = document.getElementById('pageWishlistSavings');
+    const pageLedger = document.getElementById('pageLedger');
+    if (wishlistBackBtn && pageWishlist && pageLedger) {
+        wishlistBackBtn.addEventListener('click', () => {
+            pageWishlist.style.display = 'none';
+            pageLedger.style.display = 'block';
         });
     }
     
-    if (cancelBtn) {
-        cancelBtn.addEventListener('click', () => {
-            if (modal) modal.style.display = 'none';
+    // 選項卡切換
+    document.getElementById('wishlistTab')?.addEventListener('click', () => switchTab('wishlist'));
+    document.getElementById('savingsTab')?.addEventListener('click', () => switchTab('savings'));
+    
+    // 新增按鈕
+    document.getElementById('addWishlistBtn')?.addEventListener('click', () => showWishlistForm());
+    document.getElementById('addSavingsBtn')?.addEventListener('click', () => showSavingsForm());
+    
+    // 想買的東西表單事件
+    document.getElementById('wishlistFormBackBtn')?.addEventListener('click', closeWishlistForm);
+    document.getElementById('wishlistFormCancelBtn')?.addEventListener('click', closeWishlistForm);
+    document.getElementById('wishlistFormSaveBtn')?.addEventListener('click', saveWishlistItem);
+    
+    // 存錢目標表單事件
+    document.getElementById('savingsModalCloseBtn')?.addEventListener('click', closeSavingsForm);
+    document.getElementById('savingsFormCancelBtn')?.addEventListener('click', closeSavingsForm);
+    document.getElementById('savingsFormSaveBtn')?.addEventListener('click', saveSavingsGoal);
+    const savingsModal = document.getElementById('savingsModal');
+    if (savingsModal) {
+        savingsModal.addEventListener('click', (e) => {
+            if (e.target === savingsModal) {
+                closeSavingsForm();
+            }
         });
     }
     
-    if (confirmBtn) {
-        confirmBtn.addEventListener('click', () => {
-            playClickSound(); // 播放點擊音效
-            confirmCrop();
+    // 星級評分事件
+    document.querySelectorAll('.star-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const rating = parseInt(e.target.dataset.rating);
+            document.querySelectorAll('.star-btn').forEach((star, index) => {
+                star.classList.toggle('active', index < rating);
+            });
         });
+    });
+    
+    // 初始渲染
+    switchTab('wishlist');
+}
+
+// 在頁面載入時初始化
+document.addEventListener('DOMContentLoaded', () => {
+    initWishlistSavingsPage();
+});
+
+// ========== 上傳所有資料到 Google Sheet ==========
+
+// 上傳完整數據到 Google Sheet
+function uploadAllDataToGoogleSheet() {
+    const uploadUrl = localStorage.getItem('googleSheetUploadUrl');
+    const uploadKey = localStorage.getItem('googleCloudBackupKey');
+    
+    if (!uploadUrl) {
+        alert('請先設定 Google Sheet 上傳 URL');
+        setGoogleSheetUploadUrl();
+        return;
     }
     
-    if (overlay) {
-        overlay.addEventListener('click', () => {
-            if (modal) modal.style.display = 'none';
-        });
+    if (!uploadKey) {
+        alert('請先設定 Google Cloud 備份金鑰');
+        setGoogleCloudBackupKey();
+        return;
     }
+    
+    try {
+        // 收集所有數據
+        const allData = collectAllData();
+        
+        // 準備上傳數據
+        const uploadData = {
+            uploadKey: uploadKey,
+            timestamp: new Date().toISOString(),
+            dataType: 'completeBackup',
+            data: allData
+        };
+        
+        // 顯示上傳進度
+        showUploadProgress('正在上傳所有資料...');
+        
+        // 嘗試多種上傳方法
+        attemptMultipleUploadMethods(uploadUrl, uploadData);
+        
+    } catch (error) {
+        hideUploadProgress();
+        showUploadError('準備上傳資料時發生錯誤：' + error.message);
+    }
+}
+
+// 嘗試多種上傳方法
+function attemptMultipleUploadMethods(uploadUrl, uploadData) {
+    // 方法1：使用 CORS 模式的 fetch
+    tryFetchWithCORS(uploadUrl, uploadData)
+        .then(() => {
+            // 如果成功，結束
+        })
+        .catch(() => {
+            // 方法2：使用表單提交
+            tryFormSubmission(uploadUrl, uploadData)
+                .then(() => {
+                    // 如果成功，結束
+                })
+                .catch(() => {
+                    // 方法3：使用 JSONP 風格
+                    tryJSONPStyle(uploadUrl, uploadData)
+                        .then(() => {
+                            // 如果成功，結束
+                        })
+                        .catch(() => {
+                            // 所有方法都失敗，顯示替代方案
+                            hideUploadProgress();
+                            showUploadError('所有上傳方法都失敗了，請使用替代方案');
+                            showFallbackOptions();
+                        });
+                });
+        });
+}
+
+// 方法1：使用 CORS 模式的 fetch
+function tryFetchWithCORS(uploadUrl, uploadData) {
+    return new Promise((resolve, reject) => {
+        fetch(uploadUrl, {
+            method: 'POST',
+            mode: 'cors',
+            cache: 'no-cache',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(uploadData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP 錯誤！狀態碼：${response.status}`);
+            }
+            return response.json();
+        })
+        .then(result => {
+            hideUploadProgress();
+            if (result.success) {
+                showUploadSuccess('所有資料已成功上傳到 Google Sheet！');
+                saveBackupHistory('success', '完整備份上傳成功 (CORS)');
+                resolve();
+            } else {
+                showUploadError('上傳失敗：' + (result.error || '未知錯誤'));
+                saveBackupHistory('error', result.error || '未知錯誤');
+                reject();
+            }
+        })
+        .catch(error => {
+            console.warn('CORS 方法失敗：', error);
+            reject(error);
+        });
+    });
+}
+
+// 方法2：使用表單提交
+function tryFormSubmission(uploadUrl, uploadData) {
+    return new Promise((resolve, reject) => {
+        try {
+            // 創建隱藏的表單
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = uploadUrl;
+            form.style.display = 'none';
+            form.enctype = 'application/json'; // 設定為 JSON
+            
+            // 添加數據字段 - 直接作為 JSON 字符串
+            const dataField = document.createElement('input');
+            dataField.type = 'hidden';
+            dataField.name = 'data';
+            dataField.value = JSON.stringify(uploadData);
+            form.appendChild(dataField);
+            
+            // 定義回調函數
+            window.handleUploadResponse = function(response) {
+                hideUploadProgress();
+                if (response.success) {
+                    showUploadSuccess('所有資料已成功上傳到 Google Sheet！');
+                    saveBackupHistory('success', '完整備份上傳成功 (表單)');
+                    resolve();
+                } else {
+                    showUploadError('上傳失敗：' + (response.error || '未知錯誤'));
+                    saveBackupHistory('error', response.error || '未知錯誤');
+                    reject();
+                }
+                // 清理回調函數
+                delete window.handleUploadResponse;
+            };
+            
+            // 設置超時
+            setTimeout(() => {
+                if (window.handleUploadResponse) {
+                    delete window.handleUploadResponse;
+                    reject(new Error('表單提交超時'));
+                }
+            }, 30000);
+            
+            // 提交表單
+            document.body.appendChild(form);
+            form.submit();
+            document.body.removeChild(form);
+            
+        } catch (error) {
+            console.warn('表單提交方法失敗：', error);
+            reject(error);
+        }
+    });
+}
+
+// 方法3：使用 JSONP 風格（通過 iframe）
+function tryJSONPStyle(uploadUrl, uploadData) {
+    return new Promise((resolve, reject) => {
+        try {
+            // 創建 iframe
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.name = 'uploadFrame';
+            
+            // 創建表單，目標指向 iframe
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = uploadUrl;
+            form.target = 'uploadFrame';
+            form.style.display = 'none';
+            
+            // 添加數據
+            const dataField = document.createElement('input');
+            dataField.type = 'hidden';
+            dataField.name = 'data';
+            dataField.value = JSON.stringify(uploadData);
+            form.appendChild(dataField);
+            
+            // 監聽 iframe 載入
+            iframe.onload = function() {
+                try {
+                    // 嘗試讀取 iframe 內容
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    const content = iframeDoc.body.textContent || iframeDoc.body.innerText;
+                    
+                    if (content) {
+                        const result = JSON.parse(content);
+                        hideUploadProgress();
+                        if (result.success) {
+                            showUploadSuccess('所有資料已成功上傳到 Google Sheet！');
+                            saveBackupHistory('success', '完整備份上傳成功 (iframe)');
+                            resolve();
+                        } else {
+                            showUploadError('上傳失敗：' + (result.error || '未知錯誤'));
+                            saveBackupHistory('error', result.error || '未知錯誤');
+                            reject();
+                        }
+                    } else {
+                        reject(new Error('iframe 無法讀取回應'));
+                    }
+                } catch (error) {
+                    reject(new Error('解析 iframe 回應失敗'));
+                } finally {
+                    document.body.removeChild(iframe);
+                    document.body.removeChild(form);
+                }
+            };
+            
+            // 設置超時
+            setTimeout(() => {
+                if (document.body.contains(iframe)) {
+                    document.body.removeChild(iframe);
+                    document.body.removeChild(form);
+                }
+                reject(new Error('iframe 方法超時'));
+            }, 30000);
+            
+            // 添加到頁面並提交
+            document.body.appendChild(iframe);
+            document.body.appendChild(form);
+            form.submit();
+            
+        } catch (error) {
+            console.warn('iframe 方法失敗：', error);
+            reject(error);
+        }
+    });
+}
+
+// 保存備份歷史
+function saveBackupHistory(status, message) {
+    const history = JSON.parse(localStorage.getItem('backupHistory') || '[]');
+    history.unshift({
+        timestamp: new Date().toISOString(),
+        status: status,
+        message: message,
+        type: 'completeBackup'
+    });
+    
+    // 只保留最近 50 條記錄
+    if (history.length > 50) {
+        history.splice(50);
+    }
+    
+    localStorage.setItem('backupHistory', JSON.stringify(history));
+}
+
+// 顯示替代方案
+function showFallbackOptions() {
+    const fallbackModal = document.createElement('div');
+    fallbackModal.id = 'fallbackModal';
+    fallbackModal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 10007;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    `;
+    
+    fallbackModal.innerHTML = `
+        <div style="background: white; border-radius: 16px; padding: 32px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
+            <h3 style="margin: 0 0 20px 0; color: #333;">🔄 替代備份方案</h3>
+            <p style="margin: 0 0 20px 0; color: #666; line-height: 1.5;">
+                由於雲端上傳失敗，您可以嘗試以下替代方案：
+            </p>
+            
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <button onclick="downloadBackupFile()" style="
+                    background: linear-gradient(135deg, #667eea, #764ba2);
+                    color: white;
+                    border: none;
+                    padding: 12px 20px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 500;
+                ">
+                    💾 下載備份檔案到本機
+                </button>
+                
+                <button onclick="copyDataToClipboard()" style="
+                    background: linear-gradient(135deg, #f093fb, #f5576c);
+                    color: white;
+                    border: none;
+                    padding: 12px 20px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 500;
+                ">
+                    📋 複製數據到剪貼簿
+                </button>
+                
+                <button onclick="retryUpload()" style="
+                    background: linear-gradient(135deg, #4facfe, #00f2fe);
+                    color: white;
+                    border: none;
+                    padding: 12px 20px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 500;
+                ">
+                    🔄 重新嘗試上傳
+                </button>
+                
+                <button onclick="checkGoogleScriptSettings()" style="
+                    background: linear-gradient(135deg, #43e97b, #38f9d7);
+                    color: white;
+                    border: none;
+                    padding: 12px 20px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 500;
+                ">
+                    ⚙️ 檢查 Google Script 設定
+                </button>
+            </div>
+            
+            <div style="margin-top: 24px; padding: 16px; background: #f8f9fa; border-radius: 8px;">
+                <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 14px;">📝 Google Script 設定檢查清單：</h4>
+                <ul style="margin: 0; padding-left: 20px; color: #6c757d; font-size: 13px; line-height: 1.4;">
+                    <li>Web App 是否已正確部署？</li>
+                    <li>權限是否設為 "Anyone" 可以存取？</li>
+                    <li>執行權限是否設為 "Execute as me"？</li>
+                    <li>URL 是否正確複製？</li>
+                    <li>是否有網路連線問題？</li>
+                </ul>
+            </div>
+            
+            <button onclick="closeFallbackModal()" style="
+                background: #6c757d;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 14px;
+                margin-top: 20px;
+                width: 100%;
+            ">
+                關閉
+            </button>
+        </div>
+    `;
+    
+    document.body.appendChild(fallbackModal);
+}
+
+// 下載備份檔案
+function downloadBackupFile() {
+    try {
+        const allData = collectAllData();
+        const dataStr = JSON.stringify(allData, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(dataBlob);
+        link.download = `backup_${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showNotification('備份檔案已下載到本機！', 'success');
+        closeFallbackModal();
+        saveBackupHistory('success', '本機備份檔案下載成功');
+    } catch (error) {
+        showNotification('下載失敗：' + error.message, 'error');
+    }
+}
+
+// 複製數據到剪貼簿
+function copyDataToClipboard() {
+    try {
+        const allData = collectAllData();
+        const dataStr = JSON.stringify(allData, null, 2);
+        
+        navigator.clipboard.writeText(dataStr).then(() => {
+            showNotification('數據已複製到剪貼簿！', 'success');
+            closeFallbackModal();
+            saveBackupHistory('success', '數據複製到剪貼簿成功');
+        }).catch(err => {
+            showNotification('複製失敗：' + err.message, 'error');
+        });
+    } catch (error) {
+        showNotification('複製失敗：' + error.message, 'error');
+    }
+}
+
+// 重新嘗試上傳
+function retryUpload() {
+    closeFallbackModal();
+    setTimeout(() => {
+        uploadAllDataToGoogleSheet();
+    }, 500);
+}
+
+// 檢查 Google Script 設定
+function checkGoogleScriptSettings() {
+    const currentUrl = localStorage.getItem('googleSheetUploadUrl');
+    const currentKey = localStorage.getItem('googleCloudBackupKey');
+    
+    let message = '📋 目前設定狀態：\n\n';
+    message += `Google Sheet URL：${currentUrl ? '已設定' : '未設定'}\n`;
+    message += `備份金鑰：${currentKey ? '已設定' : '未設定'}\n\n`;
+    
+    if (!currentUrl || !currentKey) {
+        message += '❌ 設定不完整，請先完成設定：\n';
+        if (!currentUrl) message += '1. 設定 Google Sheet URL\n';
+        if (!currentKey) message += '2. 設定備份金鑰\n';
+    } else {
+        message += '✅ 設定完整\n\n';
+        message += '如果仍然失敗，請檢查：\n';
+        message += '1. Google Script Web App 是否正確部署\n';
+        message += '2. 權限設定是否正確\n';
+        message += '3. 網路連線是否正常\n';
+        message += '4. URL 是否正確複製\n\n';
+        message += '建議：\n';
+        message += '- 重新部署 Google Script Web App\n';
+        message += '- 檢查執行紀錄中的錯誤訊息';
+    }
+    
+    alert(message);
+    
+    if (!currentUrl) {
+        setGoogleSheetUploadUrl();
+    } else if (!currentKey) {
+        setGoogleCloudBackupKey();
+    }
+}
+
+// 關閉替代方案模態框
+function closeFallbackModal() {
+    const modal = document.getElementById('fallbackModal');
+    if (modal) {
+        document.body.removeChild(modal);
+    }
+}
+
+// 刪除 Google Sheet 中的所有數據
+function deleteAllDataFromGoogleSheet() {
+    const uploadUrl = localStorage.getItem('googleSheetUploadUrl');
+    const uploadKey = localStorage.getItem('googleCloudBackupKey');
+    
+    if (!uploadUrl) {
+        alert('請先設定 Google Sheet 上傳 URL');
+        setGoogleSheetUploadUrl();
+        return;
+    }
+    
+    if (!uploadKey) {
+        alert('請先設定 Google Cloud 備份金鑰');
+        setGoogleCloudBackupKey();
+        return;
+    }
+    
+    // 確認對話框
+    const confirmMessage = `⚠️ 警告：此操作將永久刪除 Google Sheet 中的所有備份數據！
+
+刪除的數據包括：
+• 所有記帳記錄
+• 想買的東西清單
+• 存錢目標
+• 分類設定
+• 所有備份歷史
+
+此操作無法復原！
+
+確認要繼續嗎？`;
+    
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+    
+    // 二次確認
+    const finalConfirm = prompt('請輸入 "DELETE" 以確認刪除操作：');
+    if (finalConfirm !== 'DELETE') {
+        alert('刪除操作已取消');
+        return;
+    }
+    
+    try {
+        // 準備清除數據請求
+        const clearData = {
+            clearKey: 'CLEAR_ALL_DATA_2026',
+            uploadKey: uploadKey,
+            timestamp: new Date().toISOString(),
+            dataType: 'clearAllData'
+        };
+        
+        // 顯示清除進度
+        showClearProgress('正在清除所有資料...');
+        
+        // 執行清除請求
+        fetch(uploadUrl, {
+            method: 'POST',
+            mode: 'cors',
+            cache: 'no-cache',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(clearData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP 錯誤！狀態碼：${response.status}`);
+            }
+            return response.json();
+        })
+        .then(result => {
+            hideClearProgress();
+            if (result.success) {
+                showClearSuccess('所有資料已成功清除！');
+                // 記錄清除歷史
+                saveBackupHistory('cleared', 'Google Sheet 數據清除成功');
+                
+                // 顯示詳細結果
+                if (result.deletedItems && result.deletedItems.length > 0) {
+                    const details = result.deletedItems.join('\n• ');
+                    alert(`清除完成！\n\n已處理項目：\n• ${details}`);
+                }
+            } else {
+                showClearError('清除失敗：' + (result.error || '未知錯誤'));
+                saveBackupHistory('error', '數據清除失敗: ' + (result.error || '未知錯誤'));
+            }
+        })
+        .catch(error => {
+            hideClearProgress();
+            console.error('清除詳細錯誤：', error);
+            showClearError('清除失敗：' + error.message);
+            saveBackupHistory('error', '數據清除失敗: ' + error.message);
+        });
+        
+    } catch (error) {
+        hideClearProgress();
+        showClearError('準備清除資料時發生錯誤：' + error.message);
+    }
+}
+
+// 顯示清除進度
+function showClearProgress(message) {
+    const progressModal = document.createElement('div');
+    progressModal.id = 'clearProgressModal';
+    progressModal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 10008;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    `;
+    
+    progressModal.innerHTML = `
+        <div style="background: white; border-radius: 16px; padding: 32px; max-width: 400px; width: 90%; text-align: center;">
+            <div style="font-size: 48px; margin-bottom: 16px;">🗑️</div>
+            <h3 style="margin: 0 0 16px 0; color: #dc3545;">清除中</h3>
+            <p style="margin: 0; color: #666;">${message}</p>
+            <div style="margin-top: 20px;">
+                <div style="width: 100%; height: 4px; background: #e9ecef; border-radius: 2px; overflow: hidden;">
+                    <div style="width: 100%; height: 100%; background: linear-gradient(90deg, #dc3545, #ff6b6b); animation: loading 1.5s ease-in-out infinite;"></div>
+                </div>
+            </div>
+        </div>
+        <style>
+            @keyframes loading {
+                0% { transform: translateX(-100%); }
+                100% { transform: translateX(100%); }
+            }
+        </style>
+    `;
+    
+    document.body.appendChild(progressModal);
+}
+
+// 隱藏清除進度
+function hideClearProgress() {
+    const progressModal = document.getElementById('clearProgressModal');
+    if (progressModal) {
+        document.body.removeChild(progressModal);
+    }
+}
+
+// 顯示清除成功
+function showClearSuccess(message) {
+    showNotification(message, 'success');
+}
+
+// 顯示清除錯誤
+function showClearError(message) {
+    showNotification(message, 'error');
+}
+
+// 收集所有數據
+function collectAllData() {
+    return {
+        // 記帳記錄
+        records: getAllRecords(),
+        
+        // 想買的東西
+        wishlist: wishlistSavingsManager.wishlistData,
+        
+        // 存錢目標
+        savings: wishlistSavingsManager.savingsData,
+        
+        // 分類設定
+        categories: {
+            expense: JSON.parse(localStorage.getItem('expenseCategories') || '[]'),
+            income: JSON.parse(localStorage.getItem('incomeCategories') || '[]')
+        },
+        
+        // 帳戶設定
+        accounts: JSON.parse(localStorage.getItem('accounts') || '[]'),
+        
+        // 設定資料
+        settings: {
+            theme: localStorage.getItem('theme') || 'default',
+            fontSize: localStorage.getItem('fontSize') || 'medium',
+            currency: localStorage.getItem('currency') || 'NT$'
+        },
+        
+        // 分期規則
+        installmentRules: JSON.parse(localStorage.getItem('installmentRules') || '[]'),
+        
+        // 常用項目
+        frequentItems: JSON.parse(localStorage.getItem('frequentItems') || '[]'),
+        
+        // 備份歷史
+        backupHistory: JSON.parse(localStorage.getItem('backupHistory') || '[]')
+    };
+}
+
+// 獲取所有記帳記錄
+function getAllRecords() {
+    const allRecords = [];
+    const monthKeys = Object.keys(localStorage).filter(key => key.match(/^\d{4}-\d{2}$/));
+    
+    monthKeys.forEach(monthKey => {
+        try {
+            const monthData = JSON.parse(localStorage.getItem(monthKey) || '{}');
+            if (monthData.records && Array.isArray(monthData.records)) {
+                allRecords.push(...monthData.records.map(record => ({
+                    ...record,
+                    monthKey: monthKey
+                })));
+            }
+        } catch (error) {
+            console.warn('無法解析月份資料：', monthKey, error);
+        }
+    });
+    
+    return allRecords;
+}
+
+// 顯示上傳進度
+function showUploadProgress(message) {
+    const progressModal = document.createElement('div');
+    progressModal.id = 'uploadProgressModal';
+    progressModal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 10005;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    `;
+    
+    progressModal.innerHTML = `
+        <div style="background: white; border-radius: 16px; padding: 32px; max-width: 400px; width: 90%; text-align: center;">
+            <div style="font-size: 48px; margin-bottom: 16px;">⏳</div>
+            <h3 style="margin: 0 0 16px 0; color: #333;">上傳中</h3>
+            <p style="margin: 0; color: #666;">${message}</p>
+            <div style="margin-top: 20px;">
+                <div style="width: 100%; height: 4px; background: #e9ecef; border-radius: 2px; overflow: hidden;">
+                    <div style="width: 100%; height: 100%; background: linear-gradient(90deg, #4facfe, #00f2fe); animation: loading 1.5s ease-in-out infinite;"></div>
+                </div>
+            </div>
+        </div>
+        <style>
+            @keyframes loading {
+                0% { transform: translateX(-100%); }
+                100% { transform: translateX(100%); }
+            }
+        </style>
+    `;
+    
+    document.body.appendChild(progressModal);
+}
+
+// 隱藏上傳進度
+function hideUploadProgress() {
+    const progressModal = document.getElementById('uploadProgressModal');
+    if (progressModal) {
+        document.body.removeChild(progressModal);
+    }
+}
+
+// 顯示上傳成功
+function showUploadSuccess(message) {
+    showNotification(message, 'success');
+}
+
+// 顯示上傳錯誤
+function showUploadError(message) {
+    showNotification(message, 'error');
+}
+
+// 顯示通知
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#17a2b8'};
+        color: white;
+        padding: 16px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 10006;
+        max-width: 300px;
+        word-wrap: break-word;
+    `;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // 自動移除通知
+    setTimeout(() => {
+        if (notification.parentNode) {
+            document.body.removeChild(notification);
+        }
+    }, 5000);
+}
+
+// 在設置頁面添加上傳所有資料的選項
+function addUploadAllDataOption() {
+    const settingsSections = [
+        {
+            title: '🎨 個人化設定',
+            items: [
+                { icon: '🎨', title: '主題顏色', description: '選擇您喜歡的主題顏色', action: 'theme', accent: 'linear-gradient(135deg, #667eea, #764ba2)', iconGradient: 'linear-gradient(135deg, #667eea, #764ba2)' },
+                { icon: '📝', title: '字體大小', description: '調整介面字體大小', action: 'fontSize', accent: 'linear-gradient(135deg, #f093fb, #f5576c)', iconGradient: 'linear-gradient(135deg, #f093fb, #f5576c)' },
+                { icon: '🗂️', title: '分類管理', description: '管理收支分類', action: 'categoryManage', accent: 'linear-gradient(135deg, #4facfe, #00f2fe)', iconGradient: 'linear-gradient(135deg, #4facfe, #00f2fe)' },
+                            ]
+        },
+        {
+            title: '💾 資料備份',
+            items: [
+                { icon: '☁️', title: '上傳所有資料', description: '將所有數據上傳到 Google Sheet', action: 'uploadAllData', accent: 'linear-gradient(135deg, #fa709a, #fee140)', iconGradient: 'linear-gradient(135deg, #fa709a, #fee140)' },
+                { icon: '💾', title: '本機備份', description: '下載資料到本機', action: 'backup', accent: 'linear-gradient(135deg, #30cfd0, #330867)', iconGradient: 'linear-gradient(135deg, #30cfd0, #330867)' },
+                { icon: '📂', title: '本機還原', description: '從本機檔案還原資料', action: 'restore', accent: 'linear-gradient(135deg, #a8edea, #fed6e3)', iconGradient: 'linear-gradient(135deg, #a8edea, #fed6e3)' },
+                { icon: '🔗', title: '設定 Google Sheet URL', description: '設定 Google Sheet 上傳位址', action: 'setGoogleSheetUploadUrl', accent: 'linear-gradient(135deg, #ffecd2, #fcb69f)', iconGradient: 'linear-gradient(135deg, #ffecd2, #fcb69f)' },
+                { icon: '🔐', title: '設定雲端備份金鑰', description: '設定 Google Cloud 備份金鑰', action: 'setGoogleCloudBackupKey', accent: 'linear-gradient(135deg, #ff9a9e, #fecfef)', iconGradient: 'linear-gradient(135deg, #ff9a9e, #fecfef)' }
+            ]
+        },
+        {
+            title: '📊 分析工具',
+            items: [
+                { icon: '📈', title: '年報', description: '生成年度分析報告', action: 'annualReport', accent: 'linear-gradient(135deg, #a1c4fd, #c2e9fb)', iconGradient: 'linear-gradient(135deg, #a1c4fd, #c2e9fb)' },
+                { icon: '📑', title: '分期', description: '管理分期與長期支出', action: 'installmentRules', accent: 'linear-gradient(135deg, #fbc2eb, #a6c1ee)', iconGradient: 'linear-gradient(135deg, #fbc2eb, #a6c1ee)' }
+            ]
+        },
+        {
+            title: '📚 說明與支援',
+            items: [
+                { icon: '🛍️', title: '想買的東西/存錢目標', description: '管理願望清單和儲蓄計劃', action: 'wishlistSavings', accent: 'linear-gradient(135deg, #667eea, #764ba2)', iconGradient: 'linear-gradient(135deg, #667eea, #764ba2)' },
+                { icon: '👨‍💻', title: '關於', description: '創作者與版本資訊', action: 'creator', accent: 'linear-gradient(135deg, #d299c2, #fef9d7)', iconGradient: 'linear-gradient(135deg, #d299c2, #fef9d7)' }
+            ]
+        }
+    ];
+    
+    return settingsSections;
+}
+
+// 更新設置頁面事件處理
+function updateSettingsEventHandlers() {
+    document.querySelectorAll('.settings-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const action = item.dataset.action;
+            if (action === 'uploadAllData') {
+                uploadAllDataToGoogleSheet();
+            } else if (action === 'backup') {
+                backupData();
+            } else if (action === 'restore') {
+                restoreData();
+            } else if (action === 'setGoogleSheetUploadUrl') {
+                setGoogleSheetUploadUrl();
+            } else if (action === 'setGoogleCloudBackupKey') {
+                setGoogleCloudBackupKey();
+            } else if (action === 'cloudBackupFull') {
+                cloudBackupToGoogleSheet();
+            } else if (action === 'cloudRestoreFull') {
+                cloudRestoreFromGoogleSheet();
+            } else if (action === 'uploadAllRecordsDetailsToGoogleSheet') {
+                uploadAllRecordsDetailsToGoogleSheet();
+            } else if (action === 'uploadRecordsByAccountToGoogleSheet') {
+                uploadRecordsByAccountToGoogleSheet();
+            } else if (action === 'uploadIncomeExpenseCategorySummaryToGoogleSheet') {
+                uploadIncomeExpenseCategorySummaryToGoogleSheet();
+            } else if (action === 'creator') {
+                showCreatorInfo();
+            } else if (action === 'theme') {
+                showThemeSelector();
+            } else if (action === 'fontSize') {
+                showFontSizeSelector();
+                        } else if (action === 'annualReport') {
+                showAnnualReport();
+            } else if (action === 'installmentRules') {
+                showInstallmentManagementPage();
+            }
+        });
+    });
+
 }
