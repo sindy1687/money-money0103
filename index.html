@@ -7,35 +7,63 @@
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="alternate icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%23ff69b4'/><text x='50' y='70' font-size='60' text-anchor='middle' fill='white'>💰</text></svg>">
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="emerald-dream-theme.css">
+    <link rel="stylesheet" href="flame-theme.css">
+    <link rel="stylesheet" href="shinchan-theme.css">
+    <link rel="stylesheet" href="shinchan-pool-theme.css">
+    <link rel="stylesheet" href="festive-theme.css">
+    <link rel="stylesheet" href="dreamy-galaxy-theme.css">
+    <link rel="stylesheet" href="whimsical-starry-theme.css">
+    <link rel="stylesheet" href="cute-pastel-theme.css">
     <link rel="stylesheet" href="searchHistory.css">
+    <link rel="stylesheet" href="css/smart-accounting.css">
+    <link rel="stylesheet" href="css/smart-reminders.css">
+    
+    <!-- Google Fonts - 美觀字體系統 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&family=Poppins:wght@100;200;300;400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&family=Clash+Display:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
-    <!-- Header部分 -->
-    <div class="header-section" style="display: none;">
-        <button class="close-btn">←</button>
-        <div class="header-tabs">
-            <button class="header-tab active" data-type="expense">
-                <span class="header-tab-icon">👤</span>
-                <span class="header-tab-text">支出</span>
-            </button>
-            <button class="header-tab" data-type="income">
-                <span class="header-tab-icon">💰</span>
-                <span class="header-tab-text">收入</span>
-            </button>
-            <button class="header-tab" data-type="transfer">
-                <span class="header-tab-icon">💳</span>
-                <span class="header-tab-text">轉帳</span>
-            </button>
-        </div>
+    <div class="theme-video-background" aria-hidden="true">
+        <video id="moneyThemeVideo" class="theme-video" autoplay loop muted playsinline preload="auto">
+            <source src="https://v1.pinimg.com/videos/iht/expMp4/a4/53/29/a45329a21920d8db7a7f778daa592453_720w.mp4" type="video/mp4">
+        </video>
+        <video id="spaceThemeVideo" class="theme-video" autoplay loop muted playsinline preload="auto">
+            <source src="https://v1.pinimg.com/videos/iht/720p/4e/00/d1/4e00d1999152ab007ebe4aef36d5e2c9.mp4" type="video/mp4">
+        </video>
+        <video id="shinchanPoolThemeVideo" class="theme-video" autoplay loop muted playsinline preload="auto">
+            <source src="https://v1.pinimg.com/videos/iht/expMp4/76/35/eb/7635eb2cc1d1c08a867742f7144faf11_720w.mp4" type="video/mp4">
+        </video>
+        <video id="nightglowSeasonsThemeVideo" class="theme-video" autoplay loop muted playsinline preload="auto">
+            <source src="https://v1.pinimg.com/videos/iht/expMp4/c7/39/73/c739737a7c0471e01fa4e606507d0a48_720w.mp4" type="video/mp4">
+        </video>
+        <div class="theme-video-gradient"></div>
     </div>
-
     <!-- 記帳輸入頁面 -->
     <div class="page-input" id="pageInput" style="display: none;">
         <div class="app-container">
             <!-- 返回鍵 -->
             <div class="input-page-header">
                 <button class="back-btn" id="inputPageBackBtn">←</button>
+            </div>
+            
+            <!-- 記錄類型標籤切換 -->
+            <div class="record-type-tabs">
+                <button class="record-type-tab active" data-type="expense">
+                    <span class="record-type-icon">👤</span>
+                    <span class="record-type-text">支出</span>
+                </button>
+                <button class="record-type-tab" data-type="income">
+                    <span class="record-type-icon">💰</span>
+                    <span class="record-type-text">收入</span>
+                </button>
+                <button class="record-type-tab" data-type="transfer">
+                    <span class="record-type-icon">💳</span>
+                    <span class="record-type-text">轉帳</span>
+                </button>
             </div>
             
             <!-- 中間：模式切換列 -->
@@ -69,14 +97,7 @@
                     </div>
                 </div>
                 
-                <!-- 上一筆複製按鈕 -->
-                <div class="copy-last-section">
-                    <button class="copy-last-btn" id="copyLastBtn" title="複製上一筆記錄">
-                        <span class="copy-last-icon">📋</span>
-                        <span class="copy-last-text">上一筆</span>
-                    </button>
-                </div>
-                
+                                
                 <div class="category-grid" id="categoryGrid">
                     <!-- 分類項目將由 JavaScript 動態生成 -->
                 </div>
@@ -105,6 +126,23 @@
                 <span class="account-info">預設帳戶(TWD) 0</span>
             </div>
             
+            <!-- 轉帳專用帳戶選擇區域 -->
+            <div class="transfer-accounts-section" id="transferAccountsSection" style="display: none;">
+                <div class="transfer-account-row">
+                    <label class="transfer-account-label">從</label>
+                    <select class="transfer-account-select" id="transferFromAccount">
+                        <option value="">選擇帳戶</option>
+                    </select>
+                </div>
+                <div class="transfer-arrow">→</div>
+                <div class="transfer-account-row">
+                    <label class="transfer-account-label">到</label>
+                    <select class="transfer-account-select" id="transferToAccount">
+                        <option value="">選擇帳戶</option>
+                    </select>
+                </div>
+            </div>
+            
             <!-- 常用備註按鈕 -->
             <div class="quick-notes-container" id="quickNotesContainer">
                 <div class="quick-notes-label">常用備註：</div>
@@ -128,12 +166,12 @@
             </div>
             
             <!-- 計入下月選項 -->
-            <div class="next-month-option" id="nextMonthOption" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: rgba(102, 126, 234, 0.05); border-radius: 12px; margin: 8px 0; border: 1px solid rgba(102, 126, 234, 0.15);">
+            <div class="next-month-option" id="nextMonthOption" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: color-mix(in srgb, var(--color-primary) 5%, transparent); border: 1px solid color-mix(in srgb, var(--color-primary) 15%, transparent); border-radius: 12px; margin: 8px 0;">
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; flex: 1;">
-                    <input type="checkbox" id="nextMonthCheckbox" style="width: 20px; height: 20px; cursor: pointer; accent-color: #667eea;">
+                    <input type="checkbox" id="nextMonthCheckbox" style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--color-primary);">
                     <span style="font-size: 14px; font-weight: 600; color: var(--text-primary);">📅 計入下個月（本月不計）</span>
                 </label>
-                <button class="custom-date-btn" id="customDateBtn" style="display: none; padding: 6px 12px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;">設定日期</button>
+                <button class="custom-date-btn" id="customDateBtn" style="display: none; padding: 6px 12px; background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 70%, var(--color-primary-dark))); color: white; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;">設定日期</button>
             </div>
             
             <!-- 成員顯示 -->
@@ -141,10 +179,20 @@
                 <span id="memberInfo">未選擇成員</span>
             </div>
             
-            <!-- 圖片預覽 -->
+            <!-- 圖片預覽 - 支援多張圖片 -->
             <div class="image-preview" id="imagePreview" style="display: none;">
-                <img id="previewImage" src="" alt="預覽">
-                <button class="image-remove-btn" id="removeImageBtn">✕</button>
+                <div class="image-preview-header">
+                    <span class="image-count" id="imageCount">已上傳 0 張照片</span>
+                    <button class="image-remove-btn" id="removeImageBtn">✕ 清除全部</button>
+                </div>
+                <div class="image-gallery-container" id="imageGalleryContainer">
+                    <div class="image-gallery" id="imageGallery">
+                        <!-- 圖片縮圖將由 JavaScript 動態生成 -->
+                    </div>
+                    <div class="main-preview">
+                        <img id="previewImage" src="" alt="預覽">
+                    </div>
+                </div>
             </div>
 
             <!-- 金額顯示 -->
@@ -162,7 +210,7 @@
                     <button class="key-btn" data-key="9">9</button>
                 </div>
                 <div class="keyboard-row">
-                    <button class="key-btn operator" data-key="÷">/</button>
+                    <button class="key-btn operator" data-key="/">÷</button>
                     <button class="key-btn" data-key="4">4</button>
                     <button class="key-btn" data-key="5">5</button>
                     <button class="key-btn" data-key="6">6</button>
@@ -237,29 +285,80 @@
         </div>
     </div>
 
-    <!-- 圖片裁切對話框 -->
-    <div class="image-crop-modal" id="imageCropModal" style="display: none;">
+    
+    <!-- 記帳日記詳情對話框 -->
+    <div class="entry-detail-modal" id="entryDetailModal" style="display: none;">
         <div class="modal-overlay"></div>
-        <div class="modal-content crop-modal-content">
+        <div class="modal-content entry-detail-content">
             <div class="modal-header">
-                <h3 class="modal-title">裁切圖片</h3>
-                <button class="modal-close-btn" id="imageCropClose">✕</button>
+                <button class="modal-back-btn" id="entryDetailBackBtn">←</button>
+                <h3 class="modal-title">記帳日記</h3>
+                <button class="modal-close-btn" id="entryDetailClose">✕</button>
             </div>
             <div class="modal-body">
-                <div class="crop-container">
-                    <canvas id="cropCanvas"></canvas>
-                    <div class="crop-overlay" id="cropOverlay">
-                        <div class="crop-box" id="cropBox"></div>
+                <div class="entry-detail-info">
+                    <div class="entry-detail-category" id="entryDetailCategory"></div>
+                    <div class="entry-detail-amount" id="entryDetailAmount"></div>
+                    <div class="entry-detail-date" id="entryDetailDate"></div>
+                    <div class="entry-detail-note" id="entryDetailNote"></div>
+                </div>
+
+                <div class="entry-detail-actions">
+                    <button class="entry-detail-edit-btn" id="entryDetailEditBtn">✏️ 編輯這筆紀錄</button>
+                </div>
+
+                <div class="entry-detail-edit" id="entryDetailEditSection" style="display: none;">
+                    <div class="form-field">
+                        <label class="form-label" for="entryEditType">收支類型</label>
+                        <select class="form-select" id="entryEditType">
+                            <option value="expense">支出</option>
+                            <option value="income">收入</option>
+                            <option value="transfer">轉帳</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label" for="entryEditCategory">分類</label>
+                        <select class="form-select" id="entryEditCategory"></select>
+                        <div class="form-hint">分類清單會依照所選收支類型更新</div>
+                    </div>
+                    <div class="form-field entry-edit-row">
+                        <div class="entry-edit-half">
+                            <label class="form-label" for="entryEditAmount">金額</label>
+                            <input type="number" class="form-input" id="entryEditAmount" min="0" step="1" placeholder="請輸入金額">
+                        </div>
+                        <div class="entry-edit-half">
+                            <label class="form-label" for="entryEditDate">日期</label>
+                            <input type="date" class="form-input" id="entryEditDate">
+                        </div>
+                    </div>
+                    <div class="form-field entry-edit-row">
+                        <div class="entry-edit-half">
+                            <label class="form-label" for="entryEditAccount">帳戶</label>
+                            <select class="form-select" id="entryEditAccount">
+                                <option value="">（不變更）</option>
+                            </select>
+                        </div>
+                        <div class="entry-edit-half">
+                            <label class="form-label" for="entryEditMember">成員</label>
+                            <select class="form-select" id="entryEditMember">
+                                <option value="">（無成員）</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-field">
+                        <label class="form-label" for="entryEditNote">備註</label>
+                        <textarea class="form-textarea" id="entryEditNote" rows="3" placeholder="補充說明..."></textarea>
+                    </div>
+                    <div class="entry-edit-actions">
+                        <button type="button" class="entry-edit-cancel" id="entryEditCancelBtn">取消</button>
+                        <button type="button" class="entry-edit-save" id="entryEditSaveBtn">保存變更</button>
                     </div>
                 </div>
-                <div class="crop-controls">
-                    <div class="crop-size-inputs">
-                        <label>寬度: <input type="number" id="cropWidth" value="200" min="50" max="500"></label>
-                        <label>高度: <input type="number" id="cropHeight" value="200" min="50" max="500"></label>
-                    </div>
-                    <div class="crop-actions">
-                        <button class="crop-cancel-btn" id="cropCancelBtn">取消</button>
-                        <button class="crop-confirm-btn" id="cropConfirmBtn">確認裁切</button>
+                
+                <div class="entry-detail-images">
+                    <h4 class="images-title">📸 照片記錄</h4>
+                    <div class="images-gallery" id="entryDetailGallery">
+                        <!-- 圖片將由 JavaScript 動態生成 -->
                     </div>
                 </div>
             </div>
@@ -321,6 +420,8 @@
         <div class="ledger-header">
             <button class="search-btn" id="searchBtn">🔍</button>
             <h2 class="ledger-title">默認帳本</h2>
+            <button class="smart-analysis-btn" id="smartAnalysisBtn" title="智慧分析">🧠 智慧分析</button>
+            <button class="smart-reminders-btn" id="smartRemindersBtn" title="智慧提醒">🔔 智慧提醒</button>
         </div>
 
         <!-- 搜索框 -->
@@ -416,7 +517,7 @@
         </div>
 
         <!-- 浮動添加按鈕 -->
-        <button class="fab-btn" id="fabBtn">✏️</button>
+        <button class="fab-btn" id="fabBtn">🧧</button>
     </div>
 
     <!-- 圖表分析頁面 -->
@@ -568,8 +669,16 @@
                 </div>
             </div>
 
-            <div class="monthly-planner-card">
-                <div class="monthly-planner-card-title">存股 / 儲蓄</div>
+            <div class="monthly-planner-card monthly-planner-card--savings">
+                <div class="monthly-planner-card-title">
+                    <span class="title-icon">📈</span>
+                    存股 / 儲蓄
+                    <div class="savings-type-tabs">
+                        <button class="savings-type-tab active" data-type="all">全部</button>
+                        <button class="savings-type-tab" data-type="stock">存股</button>
+                        <button class="savings-type-tab" data-type="savings">儲蓄</button>
+                    </div>
+                </div>
                 <div class="monthly-planner-items" id="monthlyPlannerSavingsList"></div>
                 <div class="monthly-planner-subtotal">
                     <span class="monthly-planner-subtotal-label">存股＋預備金小計</span>
@@ -577,6 +686,7 @@
                 </div>
                 <div class="monthly-planner-actions monthly-planner-actions--inline">
                     <button class="monthly-planner-btn monthly-planner-btn--secondary" id="monthlyPlannerAddSavingsBtn">新增項目</button>
+                    <button class="monthly-planner-btn monthly-planner-btn--outline" id="monthlyPlannerQuickAddBtn">快速新增</button>
                 </div>
             </div>
 
@@ -651,6 +761,209 @@
 
         <div class="settings-list" id="settingsList">
             <!-- 設定項目將由 JavaScript 動態生成 -->
+        </div>
+    </div>
+
+    <!-- 願望清單 & 儲蓄任務頁面 -->
+    <div class="page-wishlist-savings" id="pageWishlistSavings" style="display: none;">
+        <div class="wishlist-savings-header">
+            <button class="back-btn" id="wishlistSavingsBackBtn">←</button>
+            <div>
+                <p class="wishlist-savings-eyebrow">願望清單 & 儲蓄任務</p>
+                <h2 class="wishlist-savings-title">想買的東西 / 存錢目標</h2>
+            </div>
+        </div>
+
+        <!-- 選項卡切換 -->
+        <div class="wishlist-savings-tabs">
+            <button class="tab-btn active" id="wishlistTab" data-tab="wishlist">想買的東西</button>
+            <button class="tab-btn" id="savingsTab" data-tab="savings">存錢目標</button>
+        </div>
+
+        <!-- 想買的東西內容 -->
+        <div class="tab-content active" id="wishlistContent">
+            <div class="wishlist-toolbar">
+                <div class="wishlist-search">
+                    <span>🔍</span>
+                    <input type="text" id="wishlistSearchInput" placeholder="搜尋項目名稱或備註">
+                </div>
+                <div class="wishlist-filters">
+                    <select id="wishlistImportanceFilter">
+                        <option value="all">所有重要性</option>
+                        <option value="5">必買清單（5 星）</option>
+                        <option value="4">超想要（4 星以上）</option>
+                        <option value="3">想考慮（3 星以上）</option>
+                        <option value="1">全部星等</option>
+                    </select>
+                    <select id="wishlistNecessaryFilter">
+                        <option value="all">必要 / 非必要</option>
+                        <option value="是">只看必要</option>
+                        <option value="否">只看非必要</option>
+                    </select>
+                </div>
+                <button class="add-btn primary" id="addWishlistBtn">➕ 新增項目</button>
+            </div>
+            <div class="wishlist-list" id="wishlistList">
+                <!-- 想買的東西列表將由 JavaScript 動態生成 -->
+            </div>
+        </div>
+
+        <!-- 存錢目標內容 -->
+        <div class="tab-content" id="savingsContent">
+            <div class="savings-toolbar">
+                <div class="savings-filter-group">
+                    <select id="savingsStatusFilter">
+                        <option value="all">所有狀態</option>
+                        <option value="進行中">進行中</option>
+                        <option value="暫停">暫停</option>
+                        <option value="完成">完成</option>
+                    </select>
+                    <select id="savingsPriorityFilter">
+                        <option value="all">所有優先順序</option>
+                        <option value="高">高優先</option>
+                        <option value="中">中優先</option>
+                        <option value="低">低優先</option>
+                    </select>
+                </div>
+                <button class="add-btn primary" id="addSavingsBtn">➕ 新增目標</button>
+            </div>
+            <div class="savings-list" id="savingsList">
+                <!-- 存錢目標列表將由 JavaScript 動態生成 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 想買的東西表單頁面 -->
+    <div class="page-wishlist-form" id="pageWishlistForm" style="display: none;">
+        <div class="wishlist-form-header">
+            <button class="back-btn" id="wishlistFormBackBtn">← 返回</button>
+            <h2 class="wishlist-form-title" id="wishlistFormPageTitle">新增想買的東西</h2>
+        </div>
+        <div class="wishlist-form-container">
+            <div class="form-group">
+                <label class="form-label">項目名稱</label>
+                <input type="text" class="form-input" id="wishlistItemName" placeholder="例如：新手機">
+            </div>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">類型</label>
+                    <select class="form-select" id="wishlistItemType">
+                        <option value="生活">生活</option>
+                        <option value="娛樂">娛樂</option>
+                        <option value="學習">學習</option>
+                        <option value="旅行">旅行</option>
+                        <option value="3C">3C</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">預估金額</label>
+                    <input type="number" class="form-input" id="wishlistItemAmount" placeholder="0" min="0">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">想買原因</label>
+                <textarea class="form-textarea" id="wishlistItemReason" placeholder="說明為什麼想買這個東西..."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">重要性</label>
+                <div class="star-rating" id="wishlistItemImportance">
+                    <button class="star-btn" data-rating="1">★</button>
+                    <button class="star-btn" data-rating="2">★</button>
+                    <button class="star-btn" data-rating="3">★</button>
+                    <button class="star-btn" data-rating="4">★</button>
+                    <button class="star-btn" data-rating="5">★</button>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">是否必要</label>
+                <div class="radio-group">
+                    <label class="radio-label">
+                        <input type="radio" name="wishlistItemNecessary" value="是" class="radio-input">
+                        <span class="radio-text">是</span>
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="wishlistItemNecessary" value="否" class="radio-input" checked>
+                        <span class="radio-text">否</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">備註</label>
+                <textarea class="form-textarea" id="wishlistItemNote" placeholder="其他備註事項..."></textarea>
+            </div>
+            
+            <div class="form-actions">
+                <button class="btn ghost" id="wishlistFormCancelBtn">取消</button>
+                <button class="btn primary" id="wishlistFormSaveBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 存錢目標表單（彈窗） -->
+    <div class="modal-overlay" id="savingsModal" aria-hidden="true">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="savingsModalTitle">
+            <div class="modal-header">
+                <div>
+                    <p class="modal-label">儲蓄計劃</p>
+                    <h3 class="modal-title" id="savingsModalTitle">新增存錢目標</h3>
+                </div>
+                <button class="modal-close" id="savingsModalCloseBtn" aria-label="關閉">✕</button>
+            </div>
+            <div class="modal-body savings-form-container">
+                <div class="form-group">
+                    <label class="form-label">目標名稱</label>
+                    <input type="text" class="form-input" id="savingsGoalName" placeholder="例如：緊急基金">
+                </div>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">目標金額</label>
+                        <input type="number" class="form-input" id="savingsGoalAmount" placeholder="0" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">目前已存</label>
+                        <input type="number" class="form-input" id="savingsGoalCurrent" placeholder="0" min="0">
+                    </div>
+                </div>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">每月預計存</label>
+                        <input type="number" class="form-input" id="savingsGoalMonthly" placeholder="0" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">優先順序</label>
+                        <select class="form-select" id="savingsGoalPriority">
+                            <option value="高">高</option>
+                            <option value="中">中</option>
+                            <option value="低">低</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">狀態</label>
+                    <select class="form-select" id="savingsGoalStatus">
+                        <option value="進行中">進行中</option>
+                        <option value="暫停">暫停</option>
+                        <option value="完成">完成</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">備註</label>
+                    <textarea class="form-textarea" id="savingsGoalNote" placeholder="備註事項..."></textarea>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn ghost" id="savingsFormCancelBtn">取消</button>
+                <button class="btn primary" id="savingsFormSaveBtn">保存</button>
+            </div>
         </div>
     </div>
 
@@ -778,6 +1091,13 @@
                     </div>
                 </div>
                 <div class="summary-card highlight">
+                    <div class="summary-icon">📊</div>
+                    <div class="summary-content">
+                        <div class="summary-label">總市值</div>
+                        <div class="summary-value" id="totalMarketValue">NT$0</div>
+                    </div>
+                </div>
+                <div class="summary-card highlight">
                     <div class="summary-icon">📈</div>
                     <div class="summary-content">
                         <div class="summary-label">未實現損益</div>
@@ -785,13 +1105,6 @@
                     </div>
                 </div>
                 <div class="summary-card highlight">
-                    <div class="summary-icon">📊</div>
-                    <div class="summary-content">
-                        <div class="summary-label">總市值</div>
-                        <div class="summary-value" id="totalMarketValue">NT$0</div>
-                    </div>
-                </div>
-                <div class="summary-card highlight annual-return-card">
                     <div class="summary-icon">📊</div>
                     <div class="summary-content">
                         <div class="summary-label">年化報酬率</div>
@@ -805,12 +1118,11 @@
                         <div class="summary-value" id="yearDividend">NT$0</div>
                     </div>
                 </div>
-                <div class="summary-card highlight full-width" id="investmentExpenseRatioCard" style="display: none;">
-                    <div class="summary-icon">📊</div>
+                <div class="summary-card highlight">
+                    <div class="summary-icon">⚖️</div>
                     <div class="summary-content">
-                        <div class="summary-label">投資 vs 生活支出比例</div>
-                        <div class="summary-value auto-size" id="investmentExpenseRatio">--</div>
-                        <div class="summary-hint" id="investmentExpenseRatioHint" style="font-size: 11px; color: var(--text-secondary); margin-top: 6px;"></div>
+                        <div class="summary-label">股債占比</div>
+                        <div class="summary-value" id="stockBondSummaryValue">--</div>
                     </div>
                 </div>
             </div>
@@ -1211,14 +1523,18 @@
                     <div class="modal-reference-price" id="dcaExecuteReferencePrice" style="display: none;">
                         參考價格：NT$<span id="dcaExecuteReferencePriceValue">0</span>
                     </div>
-                    <div class="form-field">
+                    <div class="form-field price-input-field">
                         <label class="form-label">當前股價</label>
-                        <input type="number" 
-                               class="form-input" 
-                               id="dcaExecutePriceInput" 
-                               placeholder="請輸入當前股價" 
-                               step="0.01" 
-                               min="0">
+                        <div class="form-input-wrapper">
+                            <input type="number" 
+                                   class="form-input" 
+                                   id="dcaExecutePriceInput" 
+                                   placeholder="請輸入當前股價" 
+                                   step="0.01" 
+                                   min="0">
+                            <span class="input-loading-indicator" id="dcaPriceLoadingIndicator" aria-hidden="true"></span>
+                        </div>
+                        <div class="form-hint" id="dcaExecutePriceHint"></div>
                     </div>
                     <div class="modal-preview" id="dcaExecutePreview" style="display: none;">
                         <div class="preview-item">
@@ -1626,12 +1942,191 @@
         </button>
     </div>
 
+    <!-- 自動轉帳管理頁面 -->
+    <div class="auto-transfer-management-page" id="autoTransferManagementPage" style="display: none;">
+        <div class="auto-transfer-header">
+            <button class="auto-transfer-back-btn" id="autoTransferBackBtn">← 返回</button>
+            <h2 class="auto-transfer-title">自動轉帳管理</h2>
+            <button class="auto-transfer-add-btn" id="autoTransferAddBtn">➕ 新增</button>
+        </div>
+        
+        <div class="auto-transfer-list-container" id="autoTransferListContainer">
+            <!-- 自動轉帳計劃列表將由 JavaScript 動態生成 -->
+        </div>
+    </div>
+
+    <!-- 自動轉帳設定頁面 -->
+    <div class="auto-transfer-setup-page" id="autoTransferSetupPage" style="display: none;">
+        <div class="auto-transfer-setup-header">
+            <button class="auto-transfer-setup-back-btn" id="autoTransferSetupBackBtn">← 返回</button>
+            <h2 class="auto-transfer-setup-title" id="autoTransferSetupTitle">新增轉帳計劃</h2>
+        </div>
+        
+        <div class="auto-transfer-setup-form">
+            <div class="form-field">
+                <label class="form-label">計劃名稱</label>
+                <input type="text" class="form-input" id="transferNameInput" placeholder="例如：每月薪資轉儲蓄">
+            </div>
+            
+            <div class="form-field">
+                <label class="form-label">轉出帳戶</label>
+                <select class="form-select" id="transferFromAccount">
+                    <!-- 帳戶選項將由 JavaScript 動態生成 -->
+                </select>
+            </div>
+            
+            <div class="form-field">
+                <label class="form-label">轉入帳戶</label>
+                <select class="form-select" id="transferToAccount">
+                    <!-- 帳戶選項將由 JavaScript 動態生成 -->
+                </select>
+            </div>
+            
+            <div class="form-field">
+                <label class="form-label">轉帳金額</label>
+                <input type="number" class="form-input" id="transferAmountInput" placeholder="請輸入轉帳金額" min="1" step="1">
+            </div>
+            
+            <div class="form-field">
+                <label class="form-label">轉帳日期</label>
+                <select class="form-select" id="transferDaySelect">
+                    <!-- 日期選項將由 JavaScript 動態生成 -->
+                </select>
+            </div>
+            
+            <div class="form-field">
+                <label class="form-checkbox-label">
+                    <input type="checkbox" class="form-checkbox" id="transferEnabledInput" checked>
+                    <span class="form-checkbox-text">啟用此轉帳計劃</span>
+                </label>
+            </div>
+            
+            <div class="form-field">
+                <label class="form-label">備註（選填）</label>
+                <textarea class="form-textarea" id="transferNoteInput" placeholder="新增備註說明"></textarea>
+            </div>
+            
+            <div class="auto-transfer-setup-actions">
+                <button class="form-submit-btn" id="transferSaveBtn">儲存</button>
+                <button class="form-delete-btn" id="transferDeleteBtn" style="display: none;">刪除</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 模組化腳本 -->
     <script src="js/categories.js"></script>
     <script src="js/storage.js"></script>
     <script src="js/advisor.js"></script>
+    <script src="js/theme.js"></script>
+    <script src="js/autoTransfer.js"></script>
+    <!-- 智慧記帳功能 -->
+    <script src="js/smart-accounting.js"></script>
+    <!-- 智慧記帳整合功能 -->
+    <script src="js/smart-accounting-integration.js"></script>
+    <!-- 智慧提醒系統 -->
+    <script src="js/smart-reminders.js"></script>
+    <!-- 性能優化器 -->
+    <script src="js/performance-optimizer-simple.js"></script>
+    <!-- 強制蝴蝶忍主題卡費文字白色 -->
+    <script src="force_fee_white.js"></script>
+    <!-- 住房物業分類顏色修復 -->
+    <script src="housing_category_fix.js"></script>
+    <!-- 錢文字淺黃色修復 -->
+    <script src="money_color_fix.js"></script>
+    <!-- 圖表文字淺黃色修復 -->
+    <script src="chart_color_fix.js"></script>
+    <!-- 強制日期文字白色 -->
+    <script src="force_date_white.js"></script>
+    <!-- 極端日期白色修復 -->
+    <script src="extreme_date_fix.js"></script>
+    <!-- 可愛粉彩主題日期修復 -->
+    <script src="cute_pastel_date_fix.js"></script>
     <!-- 主腳本（保留其他功能） -->
     <script src="script.js?v=20251227_1"></script>
     <script src="searchHistoryInit.js" type="module"></script>
+    
+    <!-- 自動修復投資卡片背景圖片 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 等待主題系統載入
+            setTimeout(function() {
+                // 檢查是否為節日慶典主題
+                const currentTheme = localStorage.getItem('selectedTheme') || localStorage.getItem('theme') || 'blue';
+                
+                if (currentTheme === 'festive') {
+                    console.log('檢測到節日慶典主題，應用投資卡片背景圖片...');
+                    applyFestiveTheme();
+                }
+                
+                // 監聽主題變化
+                const observer = new MutationObserver(function(mutations) {
+                    mutations.forEach(function(mutation) {
+                        if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
+                            const newTheme = document.documentElement.getAttribute('data-theme');
+                            if (newTheme === 'festive') {
+                                console.log('切換到節日慶典主題，應用投資卡片背景圖片...');
+                                applyFestiveTheme();
+                            }
+                        }
+                    });
+                });
+                
+                observer.observe(document.documentElement, { attributes: true });
+                
+                function applyFestiveTheme() {
+                    const cards = document.querySelectorAll('.summary-card');
+                    cards.forEach((card, index) => {
+                        // 應用背景圖片
+                        card.style.setProperty('background-image', 'url("https://i.pinimg.com/1200x/ba/24/9a/ba249a3cc3f9f317683f78c240ff0686.jpg")', 'important');
+                        card.style.setProperty('background-size', 'cover', 'important');
+                        card.style.setProperty('background-position', 'center', 'important');
+                        card.style.setProperty('background-color', 'rgba(230, 57, 70, 0.3)', 'important');
+                        card.style.setProperty('background-blend-mode', 'overlay', 'important');
+                        card.style.setProperty('border', '2px solid rgba(252, 163, 17, 0.72)', 'important');
+                        card.style.setProperty('border-radius', '20px', 'important');
+                        card.style.setProperty('backdrop-filter', 'blur(15px)', 'important');
+                        
+                        // 確保圖示可見
+                        const icon = card.querySelector('.summary-icon');
+                        if (icon) {
+                            icon.style.setProperty('color', 'white', 'important');
+                            icon.style.setProperty('font-size', '24px', 'important');
+                            icon.style.setProperty('text-shadow', '0 2px 4px rgba(0,0,0,0.5)', 'important');
+                            icon.style.setProperty('z-index', '10', 'important');
+                            icon.style.setProperty('position', 'relative', 'important');
+                        }
+                        
+                        // 確保文字可見
+                        const content = card.querySelector('.summary-content');
+                        if (content) {
+                            content.style.setProperty('color', 'white', 'important');
+                            content.style.setProperty('text-shadow', '0 2px 4px rgba(0,0,0,0.5)', 'important');
+                            content.style.setProperty('z-index', '10', 'important');
+                            content.style.setProperty('position', 'relative', 'important');
+                        }
+                        
+                        const label = card.querySelector('.summary-label');
+                        if (label) {
+                            label.style.setProperty('color', 'white', 'important');
+                            label.style.setProperty('font-size', '14px', 'important');
+                            label.style.setProperty('text-shadow', '0 2px 4px rgba(0,0,0,0.5)', 'important');
+                        }
+                        
+                        const value = card.querySelector('.summary-value');
+                        if (value) {
+                            value.style.setProperty('color', 'white', 'important');
+                            value.style.setProperty('font-size', '18px', 'important');
+                            value.style.setProperty('font-weight', 'bold', 'important');
+                            value.style.setProperty('text-shadow', '0 2px 4px rgba(0,0,0,0.5)', 'important');
+                        }
+                        
+                        console.log(`投資卡片 ${index + 1} 已應用節日慶典主題`);
+                    });
+                    
+                    console.log('節日慶典主題應用完成！');
+                }
+            }, 1000);
+        });
+    </script>
 </body>
 </html>
