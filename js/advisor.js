@@ -78,9 +78,16 @@ async function loadAdvisorDialogs() {
 
 // 獲取今天已使用的對話 key
 function getTodayUsedDialogKeys() {
-    const today = new Date().toISOString().split('T')[0];
-    const key = `advisor_dialogs_${today}`;
-    return JSON.parse(localStorage.getItem(key) || '[]');
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const key = `advisor_dialogs_${today}`;
+        const result = JSON.parse(localStorage.getItem(key) || '[]');
+        // 確保返回的是數組
+        return Array.isArray(result) ? result : [];
+    } catch (error) {
+        console.warn('Error in getTodayUsedDialogKeys:', error);
+        return [];
+    }
 }
 
 // 標記對話 key 為已使用
@@ -513,7 +520,20 @@ function checkOverspendReasonDialog() {
     // 從 localStorage 獲取所有記錄
     const allRecords = JSON.parse(localStorage.getItem('accountingRecords') || '[]');
     
+    // 確保 allRecords 是一個數組
+    if (!Array.isArray(allRecords)) {
+        console.warn('allRecords is not an array:', allRecords);
+        return;
+    }
+    
     const usedKeys = getTodayUsedDialogKeys();
+    
+    // 確保 usedKeys 是一個數組
+    if (!Array.isArray(usedKeys)) {
+        console.warn('usedKeys is not an array:', usedKeys);
+        return;
+    }
+    
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
